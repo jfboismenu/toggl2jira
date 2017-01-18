@@ -22,15 +22,20 @@ def _main():
 
     # For each ticket in Shotgun, create or update one in Toggl.
     for ticket_id, ticket_title in get_tickets_from_shotgun(sg, sg_self):
+
+        # Compute the project title.
+        project_title = "#%d %s" % (ticket_id, ticket_title)
+
+        # If the ticket is already imported into Toggl
         if ticket_id in toggl_projects:
-            print "Found", ticket_title
-#             project_desc, project_id = toggl_projects[ticket_id]
-#             if project_desc != ticket_title:
-# #                toggl.Project.update({"project": {"id": project_id, "name": ticket_title}})
-#                 return
+            project_desc, project_id = toggl_projects[ticket_id]
+            # Make sure the description part of the project name matches the title in shotgun.
+            if project_desc != ticket_title:
+                # No match, so update!
+                toggl.Projects.update(project_id, data={"project": {"name": project_title}})
+                print "Updated project '%s'" % (project_title,)
         else:
-            project_name = "#%d %s" % (ticket_id, ticket_title)
-            toggl.Projects.create({"project": {"name": project_name}})
-            print "Created project '%s'" % (project_name, )
+            toggl.Projects.create({"project": {"name": project_title}})
+            print "Created project '%s'" % (project_title, )
 
 _main()
