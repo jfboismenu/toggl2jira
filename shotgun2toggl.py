@@ -35,6 +35,7 @@ def _main():
                 toggl.Projects.update(project_id, data={"project": {"name": project_title}})
                 print "Updated project '%s'" % (project_title,)
         else:
+            # Project is missing, create in Toggl.
             toggl.Projects.create({"project": {"name": project_title}})
             print "Created project '%s'" % (project_title, )
 
