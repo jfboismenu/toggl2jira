@@ -34,6 +34,8 @@ def _main():
                 # No match, so update!
                 toggl.Projects.update(project_id, data={"project": {"name": project_title}})
                 print "Updated project '%s'" % (project_title,)
+            else:
+                print "Ticket %d %s is already in Toggl." % (ticket_id, ticket_title)
         else:
             # Project is missing, create in Toggl.
             toggl.Projects.create({"project": {"name": project_title}})
