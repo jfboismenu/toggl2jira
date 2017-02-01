@@ -47,15 +47,49 @@ def _sort_time_entries(items):
     )
 
 
+def _user_str_to_utc_timezone(date_str):
+    """
+    Turns a user's date string into a utc datetime.
+
+    :param time: Time to convert into a UTC time.
+    """
+
+    # User has specified something, so use that exactly
+    utc_offset = datetime.datetime.utcnow() - datetime.datetime.now()
+    # Convert the time into the UTC timezone.
+    return (iso8601.parse_date(date_str) + utc_offset)
+
+
+def _to_toggl_date_format(date_time):
+    """
+    Converts a date into a format Toggl supports.
+    """
+    return date_time.isoformat() + "+00:00"
+
+
 def _main():
 
     # Get some time interval options.
     parser = argparse.ArgumentParser(description="Import time entries from Toggl to Shotgun")
-    parser.add_argument("--start", "-s", action="store", required=False, default=str(datetime.date.today()))
-    parser.add_argument("--end", "-e", action="store", required=False, default=str(datetime.date.today()))
+    parser.add_argument("--start", "-s", action="store", required=False, default=None)
+    parser.add_argument("--end", "-e", action="store", required=False, default=None)
 
     # Read the options from the command line.
     args = parser.parse_args()
+
+    # if the user has specified something, turn it into UTC time.
+    if args.start is not None:
+        start = _user_str_to_utc_timezone(args.start)
+    else:
+        # Otherwise go as far as one day ago.
+        start = datetime.datetime.utcnow() - datetime.timedelta(hours=24)
+
+    # If the user has specified something, turn it into UTC time.
+    if args.end is not None:
+        end = _user_str_to_utc_timezone(args.end)
+    else:
+        # Otherwise now is pretty much the further something can be logged.
+        end = datetime.datetime.utcnow()
 
     # Log into Shotgun and toggl.
     (sg, sg_self), toggl = connect()
@@ -67,8 +101,8 @@ def _main():
 
     # Get the entries that the user requested.
     time_entries = toggl.TimeEntries.get(
-        start_date="%sT00:00:00+00:00" % args.start,
-        end_date="%sT23:59:59+00:00" % args.end
+        start_date=_to_toggl_date_format(start),
+        end_date=_to_toggl_date_format(end)
     )
 
     previous_day = None
