@@ -92,8 +92,9 @@ def _main():
     if args.start is not None:
         start = _user_str_to_utc_timezone(args.start)
     else:
-        # Otherwise go as far as one day ago.
-        start = datetime.datetime.utcnow() - datetime.timedelta(hours=24)
+        # Otherwise go as far as one day ago in UTC time.
+        # Make sure you get the time entries for the whole day of the sums will be wrong.
+        start = datetime.datetime.now().replace(hour=0, minute=0, second=0, microsecond=0) + UTC_OFFSET
 
     # If the user has specified something, turn it into UTC time.
     if args.end is not None:
