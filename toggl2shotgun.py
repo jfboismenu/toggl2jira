@@ -16,12 +16,15 @@ import iso8601
 from common import connect, get_projects_from_toggl
 import argparse
 
+# User has specified something, so use that exactly
+UTC_OFFSET = datetime.datetime.utcnow() - datetime.datetime.now()
+
 
 def _cmp_time_entry(a, b):
     """
     Compares time entries. Sorts everything by date, project and then task.
     """
-    res = cmp(iso8601.parse_date(a["start"]).date(), iso8601.parse_date(b["start"]).date())
+    res = cmp(a["start"], b["start"])
     if res != 0:
         return res
     res = cmp(a.get("pid"), b.get("pid"))
@@ -34,7 +37,7 @@ def _time_entry_key_func(time_entry):
     """
     Returns a key composed of date, project id and task name.
     """
-    return (iso8601.parse_date(time_entry["start"]).date(), time_entry.get("pid"), time_entry.get("description"))
+    return (time_entry["start"], time_entry.get("pid"), time_entry.get("description"))
 
 
 def _sort_time_entries(items):
@@ -54,10 +57,8 @@ def _user_str_to_utc_timezone(date_str):
     :param time: Time to convert into a UTC time.
     """
 
-    # User has specified something, so use that exactly
-    utc_offset = datetime.datetime.utcnow() - datetime.datetime.now()
     # Convert the time into the UTC timezone.
-    return (iso8601.parse_date(date_str) + utc_offset)
+    return (iso8601.parse_date(date_str) + UTC_OFFSET)
 
 
 def _to_toggl_date_format(date_time):
@@ -65,6 +66,16 @@ def _to_toggl_date_format(date_time):
     Converts a date into a format Toggl supports.
     """
     return date_time.isoformat() + "+00:00"
+
+
+def _massage_time_entries(time_entries):
+    """
+    Massages time entries to make them more palatable for Shotgun.
+    """
+    for t in time_entries:
+        # Convert the Toggl start date which is in UTC to a local date.
+        t["start"] = (iso8601.parse_date(t["start"]) - UTC_OFFSET).date()
+        yield t
 
 
 def _main():
@@ -108,7 +119,7 @@ def _main():
     previous_day = None
     # Group tasks by day, project and task name so we can compute and save a duration for a given task
     # on a given project on a give day.
-    for (day, pid, task_name), time_entries in _sort_time_entries(time_entries):
+    for (day, pid, task_name), time_entries in _sort_time_entries(_massage_time_entries(time_entries)):
 
         # if the project is not tracked in Shotgun, skip it!
         ticket_id = toggl_projects_to_sg.get(pid)
