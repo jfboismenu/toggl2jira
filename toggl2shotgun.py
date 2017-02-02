@@ -58,7 +58,7 @@ def _user_str_to_utc_timezone(date_str):
     """
 
     # Convert the time into the UTC timezone.
-    return (iso8601.parse_date(date_str) + UTC_OFFSET)
+    return datetime.datetime.strptime(date_str, "%Y-%m-%d") + UTC_OFFSET
 
 
 def _to_toggl_date_format(date_time):
@@ -82,8 +82,20 @@ def _main():
 
     # Get some time interval options.
     parser = argparse.ArgumentParser(description="Import time entries from Toggl to Shotgun")
-    parser.add_argument("--start", "-s", action="store", required=False, default=None)
-    parser.add_argument("--end", "-e", action="store", required=False, default=None)
+    parser.add_argument(
+        "--start", "-s",
+        action="store",
+        required=False,
+        default=None,
+        help="First day to import data for in the YYYY-MM-DD format. Defaults to today."
+    )
+    parser.add_argument(
+        "--end", "-e",
+        action="store",
+        required=False,
+        default=None,
+        help="Last day to import data for in the YYYY-MM-DD format. Defaults to today."
+    )
 
     # Read the options from the command line.
     args = parser.parse_args()
