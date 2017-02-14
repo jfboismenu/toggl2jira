@@ -87,14 +87,14 @@ def _main():
         action="store",
         required=False,
         default=None,
-        help="First day to import data for in the YYYY-MM-DD format. Defaults to today."
+        help="First day to import data for in the YYYY-MM-DD format. Defaults to 5 days ago at midnight."
     )
     parser.add_argument(
         "--end", "-e",
         action="store",
         required=False,
         default=None,
-        help="Last day to import data for in the YYYY-MM-DD format. Defaults to today."
+        help="Last day to import data for in the YYYY-MM-DD format. Defaults to current time."
     )
 
     # Read the options from the command line.
@@ -103,8 +103,9 @@ def _main():
     if args.start is not None:
         start = _user_str_to_utc_timezone(args.start)
     else:
-        # Convert the current time to today at midnight and move it to UTC.
-        start = datetime.datetime.now().replace(hour=0, minute=0, second=0, microsecond=0) + UTC_OFFSET
+        # Go back as far as 5 days ago to import data.
+        today_at_midnight = datetime.datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        start = today_at_midnight - datetime.timedelta(days=5) + UTC_OFFSET
 
     if args.end is not None:
         end = _user_str_to_utc_timezone(args.end)
