@@ -18,25 +18,53 @@ import re
 
 
 def _get_credential(cred_name, cred_default):
+    """
+    Gets a credential from the command line. Will display a default if available.
+    Prompt will be in the `cred_name [cred_default]:` format.
+
+    Entering nothing will pick the default value if one is available, otherwise
+    you'll be continuously queried.
+
+    :param str cred_name: Name of the thing you want the user to enter
+    :param str cred_default: Default value for that credential
+
+    :returns: Value entered by the user.
+    """
     if cred_default:
         cred_value = raw_input("%s [%s]: " % (cred_name, cred_default))
-        return cred_value if cred_value else cred_default
+        return cred_value.strip() if cred_value.strip() else cred_default
     else:
         cred_value = None
-        while not cred_value:
+        while not cred_value.strip():
             cred_value = raw_input("%s: " % cred_name)
-        return cred_value
+        return cred_value.strip()
 
 
 def _get_credential_file_path():
+    """
+    Retrieves the path to the credential file.
+    """
     return os.path.expanduser("~/.toggl2shotgun")
 
 
 def _get_self(sg, login):
+    """
+    Finds the the human user associated with a given login.
+
+    :param str login: Shotgun login string.
+
+    :returns: HumanUser entity associated with the login.
+    """
     return sg.find("HumanUser", [["login", "is", login]])
 
 
 def _log_into_sg():
+    """
+    Ensures that the user is logged into Shotgun. If not logged, the credentials are
+    queried. If out of date, useful defaults are provided.
+
+    :returns: Shotgun connection and associated HumanUser entity.
+    """
 
     site = None
     login = None
@@ -80,6 +108,11 @@ def _log_into_sg():
 
 
 def _log_into_toggl():
+    """
+    Ensures you are logged into Toggl with a API token. If not, credentials are queried.
+
+    :returns: Toggl API key.
+    """
 
     api_key = None
     data = {}
@@ -102,11 +135,19 @@ def _log_into_toggl():
 
 
 def _get_workspace_id(toggl):
+    """
+    Retrieves the one and only workspace id we are using.
+    """
     # Get the one and only workspace id.
     return toggl.Workspaces.get()[0]["id"]
 
 
 def get_projects_from_toggl(toggl):
+    """
+    Retrieves all projects from Toggl.
+
+    :returns: An iterable that yields (shotgun ticket id, (toggl project title, toggl project id)).
+    """
     workspace_id = _get_workspace_id(toggl)
 
     for project in toggl.Workspaces.get_projects(workspace_id):
@@ -119,6 +160,13 @@ def get_projects_from_toggl(toggl):
 
 
 def get_tickets_from_shotgun(sg, sg_self):
+    """
+    Retrieves all the the tickets from the sprint in progress.
+
+    :param sg_self: HumanUser entity dictionary for whom we request the tickets.
+
+    :returns: An iterable that yields (shotgun ticket id, shotgun ticket title)
+    """
     for item in sg.find(
         "Ticket",
         [
@@ -131,4 +179,9 @@ def get_tickets_from_shotgun(sg, sg_self):
 
 
 def connect():
+    """
+    Connects you to both Shotgun and Toggle.
+
+    :returns: A tuple of ((shotgun connection, user entity dictionary), toggl api key).
+    """
     return _log_into_sg(), _log_into_toggl()

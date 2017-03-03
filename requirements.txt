@@ -1,0 +1,2 @@
+git+git://github.com/shotgunsoftware/python-api.git
+togglwrapper==1.0.1
