@@ -78,6 +78,22 @@ def _massage_time_entries(time_entries):
         yield t
 
 
+def _to_hours_minutes(seconds):
+    seconds = int(seconds)
+
+    hours = seconds / 60
+    minutes = seconds % 60
+
+    time_str = ""
+    if hours:
+        time_str = "%dh" % hours
+
+    if minutes:
+        time_str = "%s%dm" % (time_str, minutes)
+
+    return time_str
+
+
 def _main():
 
     # Get some time interval options.
@@ -146,10 +162,10 @@ def _main():
         total_task_duration = int(sum((entry["duration"] for entry in time_entries if entry["duration"] >= 0)) / 60.0)
 
         # Show some progress.
-        print "   Ticket %s, Task %s %.2f minutes" % (
+        print "   Ticket %s, Task %s %s" % (
             ticket_id,
             task_name.ljust(40),
-            total_task_duration
+            _to_hours_minutes(total_task_duration)
         )
 
         ticket_link = {"type": "Ticket", "id": ticket_id}
