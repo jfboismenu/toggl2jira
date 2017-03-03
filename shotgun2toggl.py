@@ -15,7 +15,7 @@ from common import connect, get_projects_from_toggl, get_tickets_from_shotgun
 
 def _main():
     # Log into Shotgun
-    (sg, sg_self), toggl = connect()
+    (sg, sg_self), (toggl, wid) = connect()
 
     # Get Toggl project information
     toggl_projects = dict(get_projects_from_toggl(toggl))
@@ -38,7 +38,7 @@ def _main():
                 print "Ticket %d %s is already in Toggl." % (ticket_id, ticket_title)
         else:
             # Project is missing, create in Toggl.
-            toggl.Projects.create({"project": {"name": project_title}})
+            toggl.Projects.create({"project": {"name": project_title, "wid": wid}})
             print "Created project '%s'" % (project_title, )
 
 _main()

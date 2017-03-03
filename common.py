@@ -121,7 +121,7 @@ def _log_into_toggl():
             data = json.load(f)
         api_key = data["toggl"]
 
-        return Toggl(api_key)
+        toggl = Toggl(api_key)
     except:
         api_key = _get_credential("Toggl API Key", api_key)
 
@@ -131,15 +131,25 @@ def _log_into_toggl():
             data["toggl"] = api_key
             json.dump(data, f)
 
-        return toggl
+    return toggl, _get_shotgun_workspace(toggl)
 
 
-def _get_workspace_id(toggl):
+def _get_shotgun_workspace(toggl):
     """
     Retrieves the one and only workspace id we are using.
     """
     # Get the one and only workspace id.
-    return toggl.Workspaces.get()[0]["id"]
+    workspaces = toggl.Workspaces.get()
+    for w in workspaces:
+        if w["name"] == "Shotgun":
+            return w["id"]
+    else:
+        print "Creating Shotgun workspace."
+        w = toggl.Workspaces.create(data={"workspace": {"name": "Shotgubn"}})
+        return w["id"]
+
+
+    #return toggl.Workspaces.get()[0]["id"]
 
 
 def get_projects_from_toggl(toggl):
@@ -148,9 +158,9 @@ def get_projects_from_toggl(toggl):
 
     :returns: An iterable that yields (shotgun ticket id, (toggl project title, toggl project id)).
     """
-    workspace_id = _get_workspace_id(toggl)
+    workspace_id = _get_shotgun_workspace(toggl)
 
-    for project in toggl.Workspaces.get_projects(workspace_id):
+    for project in toggl.Workspaces.get_projects(workspace_id) or []:
         project_name = project["name"]
         if not project_name.startswith("#"):
             continue
