@@ -35,7 +35,7 @@ def _get_credential(cred_name, cred_default):
         return cred_value.strip() if cred_value.strip() else cred_default
     else:
         cred_value = None
-        while not cred_value.strip():
+        while not cred_value or not cred_value.strip():
             cred_value = raw_input("%s: " % cred_name)
         return cred_value.strip()
 
