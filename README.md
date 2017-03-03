@@ -6,7 +6,7 @@ This package allows to take Shotgun tickets and turn them into Toggl projects (`
 Both scripts will ask for your Shotgun and Toggl credentials on startup and will save them in a file name `~/.toggl2shotgun`. It will reuse them on successive runs.
 
 # Before first use
-You need to run `python -r requirements.txt` in order to add the Shotgun API and toggl API to your Python environment
+You need to run `pip install -r requirements.txt` in order to add the Shotgun API and toggl API to your Python environment
 
 ## shotgun2toggl
 
