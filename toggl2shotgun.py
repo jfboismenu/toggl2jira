@@ -130,7 +130,7 @@ def _main():
         end = datetime.datetime.utcnow()
 
     # Log into Shotgun and toggl.
-    (sg, sg_self), toggl = connect()
+    (sg, sg_self), (toggl, wid) = connect()
 
     # Get Toggl project information
     toggl_projects = get_projects_from_toggl(toggl)
