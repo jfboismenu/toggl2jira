@@ -148,6 +148,9 @@ def _main():
     # on a given project on a give day.
     for (day, pid, task_name), time_entries in _sort_time_entries(_massage_time_entries(time_entries)):
 
+        # Task names are optional. If any, set to a empty string.
+        task_name = task_name or ""
+
         # if the project is not tracked in Shotgun, skip it!
         ticket_id = toggl_projects_to_sg.get(pid)
         if ticket_id is None:
