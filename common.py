@@ -145,11 +145,8 @@ def _get_shotgun_workspace(toggl):
             return w["id"]
     else:
         print "Creating Shotgun workspace."
-        w = toggl.Workspaces.create(data={"workspace": {"name": "Shotgubn"}})
+        w = toggl.Workspaces.create(data={"workspace": {"name": "Shotgun"}})
         return w["id"]
-
-
-    #return toggl.Workspaces.get()[0]["id"]
 
 
 def get_projects_from_toggl(toggl):
