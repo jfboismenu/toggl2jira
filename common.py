@@ -17,6 +17,10 @@ import os
 import re
 
 
+class Toggl2ShotgunError(Exception):
+    pass
+
+
 def _get_credential(cred_name, cred_default):
     """
     Gets a credential from the command line. Will display a default if available.
@@ -144,9 +148,7 @@ def _get_shotgun_workspace(toggl):
         if w["name"] == "Shotgun":
             return w["id"]
     else:
-        print "Creating Shotgun workspace."
-        w = toggl.Workspaces.create(data={"workspace": {"name": "Shotgun"}})
-        return w["id"]
+        raise Toggl2ShotgunError("'Shotgun' workspace does not exist. Visit 'https://toggl.com/app/workspaces' and create a workspace named 'Shotgun'.")
 
 
 def get_projects_from_toggl(toggl):

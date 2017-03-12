@@ -13,7 +13,7 @@ from itertools import groupby
 
 import datetime
 import iso8601
-from common import connect, get_projects_from_toggl
+from common import connect, get_projects_from_toggl, Toggl2ShotgunError
 import argparse
 
 # User has specified something, so use that exactly
@@ -200,4 +200,8 @@ def _main():
             })
 
 if __name__ == "__main__":
-    _main()
+    try:
+        _main()
+    except Toggl2ShotgunError as e:
+        print
+        print str(e)
