@@ -10,7 +10,7 @@ Jean-François Boismenu
 """
 
 
-from common import connect, get_projects_from_toggl, get_tickets_from_shotgun
+from common import connect, get_projects_from_toggl, get_tickets_from_shotgun, Toggl2ShotgunError
 
 
 def _main():
@@ -41,4 +41,9 @@ def _main():
             toggl.Projects.create({"project": {"name": project_title, "wid": wid}})
             print "Created project '%s'" % (project_title, )
 
-_main()
+if __name__ == '__main__':
+    try:
+        _main()
+    except Toggl2ShotgunError as e:
+        print
+        print str(e)

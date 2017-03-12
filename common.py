@@ -148,7 +148,10 @@ def _get_shotgun_workspace(toggl):
         if w["name"] == "Shotgun":
             return w["id"]
     else:
-        raise Toggl2ShotgunError("'Shotgun' workspace does not exist. Visit 'https://toggl.com/app/workspaces' and create a workspace named 'Shotgun'.")
+        raise Toggl2ShotgunError(
+            "'Shotgun' workspace does not exist. Visit 'https://toggl.com/app/workspaces' "
+            "and create a workspace named 'Shotgun'."
+        )
 
 
 def get_projects_from_toggl(toggl):
