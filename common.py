@@ -167,10 +167,10 @@ def _create_new_connection(is_headless, data):
     # Update the data dictionary. Note that the dictionary can also
     # contain information about Toggl, so we need to update it
     # instead of creating a new one.
+    data["site"] = site
+    data["login"] = login
+    data["session_token"] = session_token
     with open(_get_credential_file_path(), "w") as f:
-        data["site"] = site
-        data["login"] = login
-        data["session_token"] = session_token
         json.dump(data, f)
 
     return sg, _get_self(sg, login)
@@ -209,6 +209,9 @@ def _log_into_sg(is_headless):
 
     try:
         sg = Shotgun(data["site"], login=data["login"], password=password)
+        data["session_token"] = sg.get_session_token()
+        with open(_get_credential_file_path(), "w") as f:
+            json.dump(data, f)
         return sg, _get_self(sg, data["login"])
     except AuthenticationFault:
         print "Password in keychain doesnt't seem to work. Did you change it?"
