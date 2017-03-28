@@ -9,6 +9,16 @@ Jean-François Boismenu
 ----------------------------------------------------------------------------
 """
 
+import sys
+import os
+third_party_location = os.path.join(os.path.dirname(__file__), "3rd_party")
+sys.path.append(third_party_location)
+
+# Disable SSL warnings on Windows.
+import requests
+from requests.packages.urllib3.exceptions import InsecurePlatformWarning
+requests.packages.urllib3.disable_warnings(InsecurePlatformWarning)
+
 from togglwrapper import Toggl
 from shotgun_api3 import Shotgun, AuthenticationFault
 from getpass import getpass
@@ -26,7 +36,40 @@ class UserInteractionRequiredError(Toggl2ShotgunError):
     pass
 
 
+def _set_password(site, login, password):
+    """
+    Sets the password into the keyring. Ignores any errors.
+
+    :param str site: Site we wish to save credentials for.
+    :param str login: Login on the site we wish to save credentials for.
+    :param str password: Password associated to the login we wish to save credentials for.
+    """
+    try:
+        keyring.set_password(site, login, password)
+    except:
+        return
+
+
+def _get_password(site, login):
+    """
+    Retrieves the password for given site and login pair. Ignores any errors.
+
+    :param str site: Site for which we require the password.
+    :param str login: Login for which we require the password.
+
+    :returns: The password.
+    """
+    try:
+        return keyring.get_password(site, login)
+    except:
+        print "It appears the keyring module doesn't support your platform."
+        return None
+
+
 def add_common_arguments(argument_parser):
+    """
+    Addds common arguments to the arguments parser.
+    """
     argument_parser.add_argument("--headless", action="store_true", default=False)
 
 
@@ -72,7 +115,11 @@ def _get_self(sg, login):
 
 
 def _get_credentials_from_file():
+    """
+    Reads the credentials from disk and returns them.
 
+    :returns: Dictionary with keys site, login, session_token and toggl.
+    """
     try:
         # Try to read it in.
         with open(_get_credential_file_path(), "r") as f:
@@ -83,6 +130,14 @@ def _get_credentials_from_file():
 
 
 def _create_new_connection(is_headless, data):
+    """
+    Creates a new Shotgun connection based on user input.
+
+    :param bool is_headless: Indicates if the script was invoked without a shell.
+    :param dict data: Data found in the credentials file.
+
+    :returns: A Shotgun connection and a user entity for the loged in user.
+    """
 
     if is_headless:
         raise UserInteractionRequiredError()
@@ -107,7 +162,7 @@ def _create_new_connection(is_headless, data):
             print
             sg = None
         else:
-            keyring.set_password(site, login, password)
+            _set_password(site, login, password)
 
     # Update the data dictionary. Note that the dictionary can also
     # contain information about Toggl, so we need to update it
@@ -125,6 +180,8 @@ def _log_into_sg(is_headless):
     """
     Ensures that the user is logged into Shotgun. If not logged, the credentials are
     queried. If out of date, useful defaults are provided.
+
+    :param bool is_headless: If True, logging won't attempt to ask for credentials.
 
     :returns: Shotgun connection and associated HumanUser entity.
     """
@@ -144,7 +201,7 @@ def _log_into_sg(is_headless):
 
     print "Session token expired. Retrieving password from keyring."
 
-    password = keyring.get_password(data["site"], data["login"])
+    password = _get_password(data["site"], data["login"])
     # If there is no password, ask for the credentials from scratch.
     if not password:
         print "Password not found in keyring or empty."

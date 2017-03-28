@@ -9,13 +9,23 @@ Jean-François Boismenu
 ----------------------------------------------------------------------------
 """
 
+from argparse import ArgumentParser
+import sys
 
-from common import connect, get_projects_from_toggl, get_tickets_from_shotgun, Toggl2ShotgunError
+from common import (
+    connect, get_projects_from_toggl, get_tickets_from_shotgun,
+    Toggl2ShotgunError, UserInteractionRequiredError, add_common_arguments
+)
 
 
 def _main():
+
+    parser = ArgumentParser(description="Import time entries from Toggl to Shotgun")
+    add_common_arguments(parser)
+
+    args = parser.parse_args()
     # Log into Shotgun
-    (sg, sg_self), (toggl, wid) = connect()
+    (sg, sg_self), (toggl, wid) = connect(args.headless)
 
     # Get Toggl project information
     toggl_projects = dict(get_projects_from_toggl(toggl))
@@ -44,6 +54,11 @@ def _main():
 if __name__ == '__main__':
     try:
         _main()
+        sys.exit(0)
+    except UserInteractionRequiredError as e:
+        print "Headless invocation failed because credentials were invalid."
+        sys.exit(1)
     except Toggl2ShotgunError as e:
         print
         print str(e)
+        sys.exit(2)
