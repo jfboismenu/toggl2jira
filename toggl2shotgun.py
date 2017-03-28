@@ -12,8 +12,8 @@ Jean-François Boismenu
 from itertools import groupby
 
 import datetime
-import iso8601
 from common import connect, get_projects_from_toggl, Toggl2ShotgunError
+import iso8601
 import argparse
 
 # User has specified something, so use that exactly

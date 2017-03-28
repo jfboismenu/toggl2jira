@@ -9,6 +9,16 @@ Jean-François Boismenu
 ----------------------------------------------------------------------------
 """
 
+import sys
+import os
+third_party_location = os.path.join(os.path.dirname(__file__), "3rd_party")
+sys.path.append(third_party_location)
+
+# Disable SSL warnings on Windows.
+import requests
+from requests.packages.urllib3.exceptions import InsecurePlatformWarning
+requests.packages.urllib3.disable_warnings(InsecurePlatformWarning)
+
 from togglwrapper import Toggl
 from shotgun_api3 import Shotgun
 from getpass import getpass

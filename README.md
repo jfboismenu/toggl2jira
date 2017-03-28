@@ -10,7 +10,6 @@ Both scripts will ask for your Shotgun and Toggl credentials on startup and will
 1. Open a Toggl account at [toggl.com/signup](https://toggl.com/signup). It's FREE!
 2. Go to your [profile](https://toggl.com/app/profile) page and get your API token. Keep that page open because you will need it the first time you launch any of the scripts.
 3. Visit your [workspaces](https://toggl.com/app/workspaces) page and create a workspace named `Shotgun`. This is where your tickets will be tracked.
-4. Run `pip install -r requirements.txt` in order to add the Shotgun API and Toggl API to your Python environment.
 
 ## shotgun2toggl
 
