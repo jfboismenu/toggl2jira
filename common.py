@@ -10,8 +10,9 @@ Jean-François Boismenu
 """
 
 from togglwrapper import Toggl
-from shotgun_api3 import Shotgun
+from shotgun_api3 import Shotgun, AuthenticationFault
 from getpass import getpass
+import keyring
 import json
 import os
 import re
@@ -19,6 +20,14 @@ import re
 
 class Toggl2ShotgunError(Exception):
     pass
+
+
+class UserInteractionRequiredError(Toggl2ShotgunError):
+    pass
+
+
+def add_common_arguments(argument_parser):
+    argument_parser.add_argument("--headless", action="store_true", default=False)
 
 
 def _get_credential(cred_name, cred_default):
@@ -62,53 +71,91 @@ def _get_self(sg, login):
     return sg.find("HumanUser", [["login", "is", login]])
 
 
-def _log_into_sg():
+def _get_credentials_from_file():
+
+    try:
+        # Try to read it in.
+        with open(_get_credential_file_path(), "r") as f:
+            data = json.load(f)
+            return data
+    except:
+        return {}
+
+
+def _create_new_connection(is_headless, data):
+
+    if is_headless:
+        raise UserInteractionRequiredError()
+
+    # If the credentials didn't  work or the file didn't exist,
+    # ask for the credentials.
+    site = _get_credential("Site", data.get("site", ""))
+    login = _get_credential("Login", data.get("login", ""))
+
+    sg = None
+    # While we don't have a valid connection, keep asking for a password.
+    while not sg:
+        password = getpass("Password: ")
+
+        # Try to connect again. Assume it'll work.
+        try:
+            sg = Shotgun(site, login=login, password=password)
+            session_token = sg.get_session_token()
+        except AuthenticationFault:
+            # Authentication failure, reset the connection handle.
+            print "Authentication failure. Bad password?"
+            print
+            sg = None
+        else:
+            keyring.set_password(site, login, password)
+
+    # Update the data dictionary. Note that the dictionary can also
+    # contain information about Toggl, so we need to update it
+    # instead of creating a new one.
+    with open(_get_credential_file_path(), "w") as f:
+        data["site"] = site
+        data["login"] = login
+        data["session_token"] = session_token
+        json.dump(data, f)
+
+    return sg, _get_self(sg, login)
+
+
+def _log_into_sg(is_headless):
     """
     Ensures that the user is logged into Shotgun. If not logged, the credentials are
     queried. If out of date, useful defaults are provided.
 
     :returns: Shotgun connection and associated HumanUser entity.
     """
-
-    site = None
-    login = None
-    session_token = None
-
     # Assume the file is empty originally.
-    data = {}
+    data = _get_credentials_from_file()
+
+    # No session token, create a new connection.
+    if not data.get("session_token"):
+        return _create_new_connection(is_headless, data)
+
+    # Try to create a session with the session token that is stored.
+    sg = Shotgun(data["site"], session_token=data["session_token"])
     try:
-        # Try to read it in.
-        with open(_get_credential_file_path(), "r") as f:
-            data = json.load(f)
-        site = data["site"]
-        login = data["login"]
-        session_token = data["session_token"]
+        return sg, _get_self(sg, data["login"])
+    except AuthenticationFault:
+        pass
 
-        # Try to create a session.
-        sg = Shotgun(site, session_token=session_token)
-        return sg, _get_self(sg, login)
-    except:
+    print "Session token expired. Retrieving password from keyring."
 
-        # If the credentials didn't  work or the file didn't exist,
-        # ask for the credentials.
-        site = _get_credential("Site", site)
-        login = _get_credential("Login", login)
-        password = getpass("Password: ")
+    password = keyring.get_password(data["site"], data["login"])
+    # If there is no password, ask for the credentials from scratch.
+    if not password:
+        print "Password not found in keyring or empty."
+        return _create_new_connection(is_headless, data)
 
-        # Try to connect again. Assume it'll work.
-        sg = Shotgun(site, login=login, password=password)
-        session_token = sg.get_session_token()
-
-        # Update the data dictionary. Note that the dictionary can also
-        # contain information about Toggl, so we need to update it
-        # instead of creating a new one.
-        with open(_get_credential_file_path(), "w") as f:
-            data["site"] = site
-            data["login"] = login
-            data["session_token"] = session_token
-            json.dump(data, f)
-
-    return sg, _get_self(sg, login)
+    try:
+        sg = Shotgun(data["site"], login=data["login"], password=password)
+        return sg, _get_self(sg, data["login"])
+    except AuthenticationFault:
+        print "Password in keychain doesnt't seem to work. Did you change it?"
+        return _create_new_connection(is_headless, data)
 
 
 def _log_into_toggl():
@@ -190,10 +237,12 @@ def get_tickets_from_shotgun(sg, sg_self):
         yield item["id"], item["title"]
 
 
-def connect():
+def connect(is_headless):
     """
     Connects you to both Shotgun and Toggle.
 
+    :param bool is_headless: Indicates if the script is invoked headless.
+
     :returns: A tuple of ((shotgun connection, user entity dictionary), toggl api key).
     """
-    return _log_into_sg(), _log_into_toggl()
+    return _log_into_sg(is_headless), _log_into_toggl()
