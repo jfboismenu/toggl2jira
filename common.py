@@ -12,7 +12,7 @@ Jean-François Boismenu
 import sys
 import os
 third_party_location = os.path.join(os.path.dirname(__file__), "3rd_party")
-sys.path.append(third_party_location)
+sys.path.insert(0, third_party_location)
 
 # Disable SSL warnings on Windows.
 import requests
