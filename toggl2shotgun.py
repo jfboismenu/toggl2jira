@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
 ----------------------------------------------------------------------------
@@ -12,7 +13,11 @@ Jean-François Boismenu
 from itertools import groupby
 
 import datetime
-from common import connect, get_projects_from_toggl, Toggl2ShotgunError
+import sys
+from common import (
+    connect, get_projects_from_toggl, Toggl2ShotgunError,
+    add_common_arguments, UserInteractionRequiredError
+)
 import iso8601
 import argparse
 
@@ -98,6 +103,7 @@ def _main():
 
     # Get some time interval options.
     parser = argparse.ArgumentParser(description="Import time entries from Toggl to Shotgun")
+    add_common_arguments(parser)
     parser.add_argument(
         "--start", "-s",
         action="store",
@@ -130,7 +136,7 @@ def _main():
         end = datetime.datetime.utcnow()
 
     # Log into Shotgun and toggl.
-    (sg, sg_self), (toggl, wid) = connect()
+    (sg, sg_self), (toggl, wid) = connect(args.headless)
 
     # Get Toggl project information
     toggl_projects = get_projects_from_toggl(toggl)
@@ -202,6 +208,11 @@ def _main():
 if __name__ == "__main__":
     try:
         _main()
+        sys.exit(0)
+    except UserInteractionRequiredError as e:
+        print "Headless invocation failed because credentials were invalid."
+        sys.exit(1)
     except Toggl2ShotgunError as e:
         print
         print str(e)
+        sys.exit(2)
