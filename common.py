@@ -27,6 +27,10 @@ import json
 import os
 import re
 
+from collections import namedtuple
+
+TogglProject = namedtuple("TogglProject", ["description", "id", "active"])
+
 
 class Toggl2ShotgunError(Exception):
     pass
@@ -275,7 +279,7 @@ def get_projects_from_toggl(toggl):
             continue
         ticket_id, ticket_desc = re.match("#([0-9]+) (.*)", project_name).groups()
 
-        yield int(ticket_id), (str(ticket_desc), project["id"])
+        yield int(ticket_id), TogglProject(str(ticket_desc), project["id"], project["active"])
 
 
 def get_tickets_from_shotgun(sg, sg_self):
