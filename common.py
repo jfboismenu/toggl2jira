@@ -269,7 +269,7 @@ def get_projects_from_toggl(toggl):
     """
     workspace_id = _get_shotgun_workspace(toggl)
 
-    for project in toggl.Workspaces.get_projects(workspace_id) or []:
+    for project in toggl.Workspaces.get_projects(workspace_id, active="both") or []:
         project_name = project["name"]
         if not project_name.startswith("#"):
             continue
