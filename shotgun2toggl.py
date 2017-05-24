@@ -33,7 +33,7 @@ def _main():
 
     sprint_tickets = set()
 
-    # For each ticket in Shotgun, create or update one in Toggl.
+    # For each ticket from the current sprint in Shotgun, create or update one in Toggl.
     for ticket_id, ticket_title in get_tickets_from_shotgun(sg, sg_self):
         sprint_tickets.add(ticket_id)
         # Compute the project title.
@@ -49,6 +49,13 @@ def _main():
                     data={"project": {"name": project_title}}
                 )
                 print "Updated project: '%s'" % (project_title,)
+            elif not toggl_projects[ticket_id].active:
+                # If the project was archived in the past, unarchive it.
+                toggl.Projects.update(
+                    toggl_projects[ticket_id].id,
+                    data={"project": {"active": True}}
+                )
+                print "Unarchived project: '%s'" % (project_title,)
             else:
                 print "Project already in Toggl: %s" % (ticket_title,)
         else:
