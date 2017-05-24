@@ -44,8 +44,7 @@ wheel-0.24.0.dist-info/LICENSE.txt,sha256=zKniDGrx_Pv2lAjzd3aShsvuvN7TNhAMm0o_Nf
 wheel-0.24.0.dist-info/metadata.json,sha256=0SxYn5XIQH_RXK_pDuaHKUZoJTieGucWUzgeuP0AvVY,1510
 wheel-0.24.0.dist-info/WHEEL,sha256=AvR0WeTpDaxT645bl5FQxUK6NPsTls2ttpcGJg3j1Xg,110
 wheel-0.24.0.dist-info/RECORD,,
-../../bin/wheel,sha256=WiTZdZzx0wKnNUSzJxCRJmTogxw5XG1Yz_ke6rrk3zU,251
-wheel-0.24.0.dist-info/INSTALLER,sha256=zuuue4knoyJ-UwPPXg8fezS7VCrXJQrAP7zeNuwvFQg,4
+/var/folders/jt/x0fhgjqx41jg9fj6y9rbqzkw0000gn/T/tmptaAjBG/bin/wheel,sha256=YMKTLsw_hn6ldu68RnonB0OiyxYkyX0u-2GIAEW3SkU,250
 wheel/test/test_install.pyc,,
 wheel/test/complex-dist/setup.pyc,,
 wheel/signatures/__init__.pyc,,

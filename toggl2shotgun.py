@@ -141,7 +141,7 @@ def _main():
     # Get Toggl project information
     toggl_projects = get_projects_from_toggl(toggl)
     # Create a map that goes from Toggl project id to a Shotgun ticket id.
-    toggl_projects_to_sg = {project_id: ticket_id for ticket_id, (_, project_id) in toggl_projects}
+    toggl_projects_to_sg = {project.id: ticket_id for ticket_id, project in toggl_projects}
 
     # Get the entries that the user requested.
     time_entries = toggl.TimeEntries.get(

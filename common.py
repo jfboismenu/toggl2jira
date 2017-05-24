@@ -12,7 +12,7 @@ Jean-François Boismenu
 import sys
 import os
 third_party_location = os.path.join(os.path.dirname(__file__), "3rd_party")
-sys.path.append(third_party_location)
+sys.path.insert(0, third_party_location)
 
 # Disable SSL warnings on Windows.
 import requests
@@ -26,6 +26,10 @@ import keyring
 import json
 import os
 import re
+
+from collections import namedtuple
+
+TogglProject = namedtuple("TogglProject", ["description", "id", "active"])
 
 
 class Toggl2ShotgunError(Exception):
@@ -269,13 +273,13 @@ def get_projects_from_toggl(toggl):
     """
     workspace_id = _get_shotgun_workspace(toggl)
 
-    for project in toggl.Workspaces.get_projects(workspace_id) or []:
+    for project in toggl.Workspaces.get_projects(workspace_id, active="both") or []:
         project_name = project["name"]
         if not project_name.startswith("#"):
             continue
         ticket_id, ticket_desc = re.match("#([0-9]+) (.*)", project_name).groups()
 
-        yield int(ticket_id), (str(ticket_desc), project["id"])
+        yield int(ticket_id), TogglProject(str(ticket_desc), project["id"], project["active"])
 
 
 def get_tickets_from_shotgun(sg, sg_self):
