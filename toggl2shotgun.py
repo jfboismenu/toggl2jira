@@ -167,15 +167,18 @@ def _main():
             print day
             previous_day = day
 
-        # Sum all the durations, except the one in progress if it is present (durtion < 9())
+        # Sum all the durations, except the one in progress if it is present (duration < 0())
         total_task_duration = int(sum((entry["duration"] for entry in time_entries if entry["duration"] >= 0)) / 60.0)
 
-        # Show some progress.
-        print "   Ticket %s, Task %s %s" % (
-            ticket_id,
-            task_name.ljust(40),
-            _to_hours_minutes(total_task_duration)
-        )
+        if total_task_duration > 0:
+            # Show some progress.
+            print "   Ticket %s, Task %s %s" % (
+                ticket_id,
+                task_name.ljust(40),
+                _to_hours_minutes(total_task_duration)
+            )
+        else:
+            continue
 
         ticket_link = {"type": "Ticket", "id": ticket_id}
 
