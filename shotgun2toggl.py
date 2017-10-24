@@ -14,7 +14,7 @@ from argparse import ArgumentParser
 import sys
 
 from common import (
-    connect, get_projects_from_toggl, get_tickets_from_shotgun,
+    connect, get_projects_from_toggl,
     Toggl2ShotgunError, UserInteractionRequiredError, add_common_arguments
 )
 
@@ -26,7 +26,7 @@ def _main():
 
     args = parser.parse_args()
     # Log into Shotgun
-    (sg, sg_self), (toggl, wid) = connect(args.headless)
+    sg_tickets, (toggl, wid) = connect(args.headless)
 
     # Get Toggl project information
     toggl_projects = dict(get_projects_from_toggl(toggl))
@@ -34,7 +34,7 @@ def _main():
     sprint_tickets = set()
 
     # For each ticket from the current sprint in Shotgun, create or update one in Toggl.
-    for ticket_id, ticket_title in get_tickets_from_shotgun(sg, sg_self):
+    for ticket_id, ticket_title in sg_tickets.get_tickets():
         sprint_tickets.add(ticket_id)
         # Compute the project title.
         project_title = "#%d %s" % (ticket_id, ticket_title)
