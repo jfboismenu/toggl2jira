@@ -14,7 +14,7 @@ from argparse import ArgumentParser
 import sys
 
 from common import (
-    connect, get_projects_from_toggl,
+    connect_to_toggl, get_projects_from_toggl, ShotgunTickets, JiraTickets,
     Toggl2ShotgunError, UserInteractionRequiredError, add_common_arguments
 )
 
@@ -26,18 +26,28 @@ def _main():
 
     args = parser.parse_args()
     # Log into Shotgun
-    sg_tickets, (toggl, wid) = connect(args.headless)
+    (toggl, wid) = connect_to_toggl(args.headless)
+
+    _import_tickets(JiraTickets, toggl, wid, args)
+    # _import_tickets(ShotgunTickets, toggl, wid, args)
+
+
+def _import_tickets(ticket_factory, toggl, wid, args):
+
+    backend = ticket_factory(args.headless)
 
     # Get Toggl project information
-    toggl_projects = dict(get_projects_from_toggl(toggl))
+    toggl_projects = get_projects_from_toggl(toggl)
+
+    toggl_projects = dict(backend.filter_projects(toggl_projects))
 
     sprint_tickets = set()
 
     # For each ticket from the current sprint in Shotgun, create or update one in Toggl.
-    for ticket_id, ticket_title in sg_tickets.get_tickets():
+    for ticket_id, ticket_title, project_title in backend.get_tickets():
+
+        # Keep track of the tickets that have been processed.
         sprint_tickets.add(ticket_id)
-        # Compute the project title.
-        project_title = "#%d %s" % (ticket_id, ticket_title)
 
         # If the ticket is already imported into Toggl
         if ticket_id in toggl_projects:
@@ -51,17 +61,19 @@ def _main():
                 print "Updated project: '%s'" % (project_title,)
             elif not toggl_projects[ticket_id].active:
                 # If the project was archived in the past, unarchive it.
-                toggl.Projects.update(
-                    toggl_projects[ticket_id].id,
-                    data={"project": {"active": True}}
-                )
+                # toggl.Projects.update(
+                #     toggl_projects[ticket_id].id,
+                #     data={"project": {"active": True}}
+                # )
                 print "Unarchived project: '%s'" % (project_title,)
             else:
                 print "Project already in Toggl: %s" % (ticket_title,)
         else:
             # Project is missing, create in Toggl.
-            toggl.Projects.create({"project": {"name": project_title, "wid": wid}})
+            # toggl.Projects.create({"project": {"name": project_title, "wid": wid}})
             print "Created project: '%s'" % (project_title,)
+
+    return
 
     projects_to_archive = set(toggl_projects.keys()) - sprint_tickets
 

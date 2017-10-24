@@ -20,6 +20,7 @@ from requests.packages.urllib3.exceptions import InsecurePlatformWarning
 requests.packages.urllib3.disable_warnings(InsecurePlatformWarning)
 
 from togglwrapper import Toggl
+from jira import JIRA
 from shotgun_api3 import Shotgun, AuthenticationFault
 from getpass import getpass
 import keyring
@@ -118,6 +119,21 @@ def _get_credential_file_path():
     return os.path.expanduser("~/.toggl2shotgun")
 
 
+def _get_credentials_from_file():
+    """
+    Reads the credentials from disk and returns them.
+
+    :returns: Dictionary with keys site, login, session_token and toggl.
+    """
+    try:
+        # Try to read it in.
+        with open(_get_credential_file_path(), "r") as f:
+            data = json.load(f)
+            return data
+    except Exception:
+        return {}
+
+
 def _log_into_toggl():
     """
     Ensures you are logged into Toggl with a API token. If not, credentials are queried.
@@ -170,43 +186,95 @@ def get_projects_from_toggl(toggl):
     workspace_id = _get_shotgun_workspace(toggl)
 
     for project in toggl.Workspaces.get_projects(workspace_id, active="both") or []:
-        project_name = project["name"]
-        if not project_name.startswith("#"):
-            continue
-        ticket_id, ticket_desc = re.match("#([0-9]+) (.*)", project_name).groups()
-
-        yield int(ticket_id), TogglProject(str(ticket_desc), project["id"], project["active"])
+        yield project
 
 
-def connect(is_headless):
+def connect_to_toggl(is_headless):
     """
-    Connects you to both Shotgun and Toggle.
-
-    :param bool is_headless: Indicates if the script is invoked headless.
-
-    :returns: A tuple of ((shotgun connection, user entity dictionary), toggl api key).
+    Connects to Toggl.
+    :returns: A tuple of (toggl API, user workspace).
     """
-    return ShotgunTickets(is_headless), _log_into_toggl()
+    return _log_into_toggl()
+
+
+class JiraTickets(object):
+
+    def __init__(self, is_headless):
+        self._jira, self._jira_project = self._connect(is_headless)
+
+    def _connect(self, is_headless):
+        data = _get_credentials_from_file()
+
+        if "jira_site" not in data or "jira_login" not in data or "jira_project" not in data:
+            return self._create_new_connection(is_headless, data)
+
+        password = _get_password(data["jira_site"], data["jira_login"])
+        # If there is no password, ask for the credentials from scratch.
+        if not password:
+            print "Password not found in keyring or empty."
+            return self._create_new_connection(is_headless, data)
+
+        try:
+            jira = JIRA(data["jira_site"], basic_auth=(data["jira_login"], password))
+            return jira, data["jira_project"]
+        except AuthenticationFault:
+            print "Password in keychain doesnt't seem to work. Did you change it?"
+            return self._create_new_connection(is_headless, data), data["jira_project"]
+
+    def _create_new_connection(self, is_headless, data):
+
+        if is_headless:
+            raise UserInteractionRequiredError()
+
+        site = _get_credential("JIRA site", data.get("jira_site", ""))
+        login = _get_credential("JIRA login", data.get("jira_login", ""))
+        project = _get_credential("JIRA project", data.get("jira_project", ""))
+
+        jira = None
+        while not jira:
+            password = getpass("Password: ")
+
+            try:
+                jira = JIRA(site, basic_auth=(login, password))
+            except Exception:
+                jira = None
+            else:
+                _set_password(site, login, password)
+
+        # Update the data dictionary. Note that the dictionary can also
+        # contain information about Toggl, so we need to update it
+        # instead of creating a new one.
+        data["jira_site"] = site
+        data["jira_login"] = login
+        data["jira_project"] = project
+        with open(_get_credential_file_path(), "w") as f:
+            json.dump(data, f)
+
+        return jira, project
+
+    def filter_projects(self, projects):
+        for project in projects:
+            project_name = project["name"]
+            if not project_name.startswith(self._jira_project + "-"):
+                continue
+            ticket_id, ticket_desc = re.match("({}-\d+) (.*)".format(self._jira_project), project_name).groups()
+            yield ticket_id, TogglProject(str(ticket_desc), project["id"], project["active"])
+
+    def get_tickets(self):
+
+        # Find all issues.
+        issues = self._jira.search_issues("project=SPLAT and assignee = currentUser()")
+
+        for issue in issues:
+            if "state=ACTIVE" not in issue.fields.customfield_12380[0]:
+                continue
+            yield str(issue), issue.fields.summary, "%s %s" % (str(issue), issue.fields.summary)
 
 
 class ShotgunTickets(object):
 
     def __init__(self, is_headless):
         self._sg, self._sg_self = self._connect(is_headless)
-
-    def _get_credentials_from_file(self):
-        """
-        Reads the credentials from disk and returns them.
-
-        :returns: Dictionary with keys site, login, session_token and toggl.
-        """
-        try:
-            # Try to read it in.
-            with open(_get_credential_file_path(), "r") as f:
-                data = json.load(f)
-                return data
-        except Exception:
-            return {}
 
     def _create_new_connection(self, is_headless, data):
         """
@@ -264,7 +332,7 @@ class ShotgunTickets(object):
         :returns: Shotgun connection and associated HumanUser entity.
         """
         # Assume the file is empty originally.
-        data = self._get_credentials_from_file()
+        data = _get_credentials_from_file()
 
         # No session token, create a new connection.
         if not data.get("session_token"):
@@ -310,4 +378,16 @@ class ShotgunTickets(object):
             ],
             ["title"]
         ):
-            yield item["id"], item["title"]
+            yield item["id"], item["title"], "#%d %s" % (item["id"], item["title"])
+
+    def filter_projects(self, projects):
+        """
+        Filters out projects that are not understood by this backend
+        """
+        for project in projects:
+            project_name = project["name"]
+            if not project_name.startswith("#"):
+                continue
+            ticket_id, ticket_desc = re.match("#([0-9]+) (.*)", project_name).groups()
+
+            yield int(ticket_id), TogglProject(str(ticket_desc), project["id"], project["active"])
