@@ -391,3 +391,33 @@ class ShotgunTickets(object):
             ticket_id, ticket_desc = re.match("#([0-9]+) (.*)", project_name).groups()
 
             yield int(ticket_id), TogglProject(str(ticket_desc), project["id"], project["active"])
+
+    def update_ticket(self, ticket_id, task_name, day, total_task_duration):
+
+        ticket_link = {"type": "Ticket", "id": ticket_id}
+
+        # Find if we have an entry for this time log.
+        timelog_entity = self._sg.find_one(
+            "TimeLog",
+            [
+                ["entity", "is", ticket_link],
+                ["description", "is", task_name],
+                ["date", "is", day]
+            ]
+        )
+
+        # Create or update the entry in Shotgun.
+        if timelog_entity:
+            self._sg.update(
+                "TimeLog",
+                timelog_entity["id"],
+                {"duration": total_task_duration}
+            )
+        else:
+            self._sg.create("TimeLog", {
+                "entity": ticket_link,
+                "description": task_name,
+                "duration": total_task_duration,
+                "project": {"type": "Project", "id": 12},
+                "date": day
+            })

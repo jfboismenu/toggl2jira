@@ -15,7 +15,7 @@ from itertools import groupby
 import datetime
 import sys
 from common import (
-    connect, get_projects_from_toggl, Toggl2ShotgunError,
+    connect_to_toggl, get_projects_from_toggl, Toggl2ShotgunError, ShotgunTickets, JiraTickets,
     add_common_arguments, UserInteractionRequiredError
 )
 import iso8601
@@ -136,12 +136,17 @@ def _main():
         end = datetime.datetime.utcnow()
 
     # Log into Shotgun and toggl.
-    (sg, sg_self), (toggl, wid) = connect(args.headless)
+    (toggl, wid) = connect_to_toggl(args.headless)
+
+    shotgun_tickets = ShotgunTickets(args.headless)
 
     # Get Toggl project information
     toggl_projects = get_projects_from_toggl(toggl)
+
+    toggl_projects = dict(shotgun_tickets.filter_projects(toggl_projects))
+
     # Create a map that goes from Toggl project id to a Shotgun ticket id.
-    toggl_projects_to_sg = {project.id: ticket_id for ticket_id, project in toggl_projects}
+    toggl_projects_to_sg = {project.id: ticket_id for ticket_id, project in toggl_projects.iteritems()}
 
     # Get the entries that the user requested.
     time_entries = toggl.TimeEntries.get(
@@ -180,33 +185,13 @@ def _main():
         else:
             continue
 
-        ticket_link = {"type": "Ticket", "id": ticket_id}
-
-        # Find if we have an entry for this time log.
-        timelog_entity = sg.find_one(
-            "TimeLog",
-            [
-                ["entity", "is", ticket_link],
-                ["description", "is", task_name],
-                ["date", "is", day]
-            ]
+        shotgun_tickets.update_ticket(
+            ticket_id,
+            task_name,
+            day,
+            max(total_task_duration, 1)
         )
 
-        # Create or update the entry in Shotgun.
-        if timelog_entity:
-            sg.update(
-                "TimeLog",
-                timelog_entity["id"],
-                {"duration": total_task_duration}
-            )
-        else:
-            sg.create("TimeLog", {
-                "entity": ticket_link,
-                "description": task_name,
-                "duration": max(total_task_duration, 1),
-                "project": {"type": "Project", "id": 12},
-                "date": day
-            })
 
 if __name__ == "__main__":
     try:
