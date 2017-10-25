@@ -138,7 +138,19 @@ def _main():
     # Log into Shotgun and toggl.
     (toggl, wid) = connect_to_toggl(args.headless)
 
-    shotgun_tickets = JiraTickets(args.headless)
+    print "Updating Shotgun tickets..."
+    print "==========================="
+    _export_tickets(ShotgunTickets, toggl, wid, args, start, end)
+
+    print
+    print "Updating JIRA issues..."
+    print "==========================="
+    _export_tickets(JiraTickets, toggl, wid, args, start, end)
+
+
+def _export_tickets(ticket_factory, toggl, wid, args, start, end):
+
+    shotgun_tickets = ticket_factory(args.headless)
 
     # Get Toggl project information
     toggl_projects = get_projects_from_toggl(toggl)
