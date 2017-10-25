@@ -138,7 +138,7 @@ def _main():
     # Log into Shotgun and toggl.
     (toggl, wid) = connect_to_toggl(args.headless)
 
-    shotgun_tickets = ShotgunTickets(args.headless)
+    shotgun_tickets = JiraTickets(args.headless)
 
     # Get Toggl project information
     toggl_projects = get_projects_from_toggl(toggl)

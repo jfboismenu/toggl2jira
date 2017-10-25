@@ -11,6 +11,7 @@ Jean-François Boismenu
 
 import sys
 import os
+import datetime
 third_party_location = os.path.join(os.path.dirname(__file__), "3rd_party")
 sys.path.insert(0, third_party_location)
 
@@ -27,6 +28,8 @@ import keyring
 import json
 import os
 import re
+import iso8601
+from tzlocal import get_localzone
 
 from collections import namedtuple
 
@@ -269,6 +272,37 @@ class JiraTickets(object):
             if "state=ACTIVE" not in issue.fields.customfield_12380[0]:
                 continue
             yield str(issue), issue.fields.summary, "%s %s" % (str(issue), issue.fields.summary)
+
+    def update_ticket(self, ticket_id, task_name, date, total_task_duration):
+
+        total_task_duration *= 60 # JIRA works in seconds
+
+        # Get all the worklogs for this ticket.
+        worklogs = self._jira.worklogs(ticket_id)
+
+        # All logs are logged with a timestamp of 9am on the day in the current timezone.
+        started = datetime.datetime(date.year, date.month, date.day, 9, 0, 0)
+        started = get_localzone().localize(started)
+
+        for w in worklogs:
+            worklog_started = iso8601.parse_date(w.started)
+
+            # If we've found a time log for the day/task pair.
+            if w.comment == task_name and started == worklog_started:
+                # ... and the total time is wrong, update it!
+                if w.timeSpentSeconds != total_task_duration:
+                    w.update(timeSpentSeconds=total_task_duration)
+
+                # We're done!
+                break
+        else:
+            # We haven't found the worklog, so we'll create a new one.
+            self._jira.add_worklog(
+                ticket_id,
+                timeSpentSeconds=total_task_duration,
+                started=started,
+                comment=task_name
+            )
 
 
 class ShotgunTickets(object):

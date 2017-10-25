@@ -29,7 +29,7 @@ def _main():
     (toggl, wid) = connect_to_toggl(args.headless)
 
     _import_tickets(JiraTickets, toggl, wid, args)
-    # _import_tickets(ShotgunTickets, toggl, wid, args)
+    _import_tickets(ShotgunTickets, toggl, wid, args)
 
 
 def _import_tickets(ticket_factory, toggl, wid, args):
@@ -61,16 +61,16 @@ def _import_tickets(ticket_factory, toggl, wid, args):
                 print "Updated project: '%s'" % (project_title,)
             elif not toggl_projects[ticket_id].active:
                 # If the project was archived in the past, unarchive it.
-                # toggl.Projects.update(
-                #     toggl_projects[ticket_id].id,
-                #     data={"project": {"active": True}}
-                # )
+                toggl.Projects.update(
+                    toggl_projects[ticket_id].id,
+                    data={"project": {"active": True}}
+                )
                 print "Unarchived project: '%s'" % (project_title,)
             else:
                 print "Project already in Toggl: %s" % (ticket_title,)
         else:
             # Project is missing, create in Toggl.
-            # toggl.Projects.create({"project": {"name": project_title, "wid": wid}})
+            toggl.Projects.create({"project": {"name": project_title, "wid": wid}})
             print "Created project: '%s'" % (project_title,)
 
     return
