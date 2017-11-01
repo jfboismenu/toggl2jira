@@ -30,12 +30,12 @@ def _main():
 
     print "Exporting Shotgun tickets to Toggl..."
     print "====================================="
-    _import_tickets(JiraTickets, toggl, wid, args)
+    _import_tickets(ShotgunTickets, toggl, wid, args)
 
     print
     print "Exporting JIRA issues to Toggl..."
     print "================================="
-    _import_tickets(ShotgunTickets, toggl, wid, args)
+    _import_tickets(JiraTickets, toggl, wid, args)
 
 
 def _import_tickets(ticket_factory, toggl, wid, args):
