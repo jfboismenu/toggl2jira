@@ -37,7 +37,8 @@ keyring-10.3.1.dist-info/entry_points.txt,sha256=2T-rl1tSgesG1OTVR6gluD_-j29d9SU
 keyring-10.3.1.dist-info/metadata.json,sha256=DRIBXI7DNPCX7tVumn-7w563anANMqlu2RHylQos9kk,1219
 keyring-10.3.1.dist-info/namespace_packages.txt,sha256=AbpHGcgLb-kRsJGnwFEktk7uzpZOCcBY74-YBdrKVGs,1
 keyring-10.3.1.dist-info/top_level.txt,sha256=ohh1dke28_NdSNkZ6nkVSwIKkLJTOwIfEwnXKva3pkg,8
-/var/folders/jt/x0fhgjqx41jg9fj6y9rbqzkw0000gn/T/tmptaAjBG/bin/keyring,sha256=JzBsIoBSa5B5kt5vlGyCu2JKfVkj11byH7LNNPnc8hM,251
+../../bin/keyring,sha256=fRFMR8AOmJfJjtdx9nHYfLEbmeSZdGG6j4sjRfp75us,249
+keyring-10.3.1.dist-info/INSTALLER,sha256=zuuue4knoyJ-UwPPXg8fezS7VCrXJQrAP7zeNuwvFQg,4
 keyring/core.pyc,,
 keyring/getpassbackend.pyc,,
 keyring/util/properties.pyc,,

@@ -8,7 +8,6 @@
 ../togglwrapper/decorators.pyc
 ../togglwrapper/exceptions.pyc
 ../togglwrapper/mixins.pyc
-./
 dependency_links.txt
 PKG-INFO
 requires.txt

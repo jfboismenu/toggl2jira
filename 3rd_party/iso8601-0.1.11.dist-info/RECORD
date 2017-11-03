@@ -7,6 +7,7 @@ iso8601-0.1.11.dist-info/metadata.json,sha256=zl1CV-5kXElkJ_8iGmvhrX-ifskAccJ9sf
 iso8601-0.1.11.dist-info/RECORD,,
 iso8601-0.1.11.dist-info/top_level.txt,sha256=QcuZrOQny2sMGrMdLZVtCilwlURtG50VMJZ4bYLwGQw,8
 iso8601-0.1.11.dist-info/WHEEL,sha256=AvR0WeTpDaxT645bl5FQxUK6NPsTls2ttpcGJg3j1Xg,110
+iso8601-0.1.11.dist-info/INSTALLER,sha256=zuuue4knoyJ-UwPPXg8fezS7VCrXJQrAP7zeNuwvFQg,4
 iso8601/__init__.pyc,,
 iso8601/iso8601.pyc,,
 iso8601/test_iso8601.pyc,,
