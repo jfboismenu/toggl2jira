@@ -18,6 +18,8 @@ from common import (
     Toggl2ShotgunError, UserInteractionRequiredError, add_common_arguments
 )
 
+DRY_RUN = True
+
 
 def _main():
 
@@ -60,33 +62,35 @@ def _import_tickets(ticket_factory, toggl, wid, args):
             # Make sure the description part of the project name matches the title in shotgun.
             if toggl_projects[ticket_id].description != ticket_title:
                 # No match, so update!
-                toggl.Projects.update(
-                    toggl_projects[ticket_id].id,
-                    data={"project": {"name": project_title}}
-                )
+                if not DRY_RUN:
+                    toggl.Projects.update(
+                        toggl_projects[ticket_id].id,
+                        data={"project": {"name": project_title}}
+                    )
                 print "Updated project: '%s'" % (project_title,)
             elif not toggl_projects[ticket_id].active:
-                # If the project was archived in the past, unarchive it.
-                toggl.Projects.update(
-                    toggl_projects[ticket_id].id,
-                    data={"project": {"active": True}}
-                )
+                if not DRY_RUN:
+                    # If the project was archived in the past, unarchive it.
+                    toggl.Projects.update(
+                        toggl_projects[ticket_id].id,
+                        data={"project": {"active": True}}
+                    )
                 print "Unarchived project: '%s'" % (project_title,)
             else:
                 print "Project already in Toggl: %s" % (ticket_title,)
         else:
-            # Project is missing, create in Toggl.
-            toggl.Projects.create({"project": {"name": project_title, "wid": wid}})
+            if not DRY_RUN:
+                # Project is missing, create in Toggl.
+                toggl.Projects.create({"project": {"name": project_title, "wid": wid}})
             print "Created project: '%s'" % (project_title,)
-
-    return
 
     projects_to_archive = set(toggl_projects.keys()) - sprint_tickets
 
     for ticket_id, toggl_project in toggl_projects.iteritems():
         if ticket_id in projects_to_archive and toggl_project.active:
             print "Archiving project: '%s'" % (toggl_project.description,)
-            toggl.Projects.update(toggl_project.id, data={"project": {"active": False}})
+            if not DRY_RUN:
+                toggl.Projects.update(toggl_project.id, data={"project": {"active": False}})
 
 
 if __name__ == '__main__':
