@@ -18,7 +18,7 @@ from common import (
     Toggl2ShotgunError, UserInteractionRequiredError, add_common_arguments
 )
 
-DRY_RUN = True
+DRY_RUN = False
 
 
 def _main():
