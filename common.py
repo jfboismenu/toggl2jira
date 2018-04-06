@@ -12,6 +12,7 @@ Jean-François Boismenu
 import sys
 import os
 import datetime
+import itertools
 third_party_location = os.path.join(os.path.dirname(__file__), "3rd_party")
 sys.path.insert(0, third_party_location)
 
@@ -266,11 +267,28 @@ class JiraTickets(object):
     def get_tickets(self):
 
         # Find all issues.
-        issues = self._jira.search_issues("project=%s and assignee = currentUser()" % self._jira_project)
-        for issue in issues:
-            if issue.fields.customfield_12380 is None or "state=ACTIVE" not in issue.fields.customfield_12380[0]:
-                continue
-            yield str(issue), issue.fields.summary, "%s %s" % (str(issue), issue.fields.summary)
+        STEP_SIZE = 50
+        for start_at in itertools.count(0, STEP_SIZE):
+            # FIXME: Haven't figured out how to grab tickets that are in an opened sprint.
+            # If that was possible that would be the best. Otherwise it would be pretty sweet
+            # if we could get all the sprints for a current project, then we would be able
+            issues = self._jira.search_issues(
+                "project = %s AND assignee = currentUser()" % self._jira_project,
+                maxResults=STEP_SIZE,
+                startAt=start_at,
+                fields=["summary", "customfield_12380", "key"]
+            )
+            # If not issues have been returned, exit.
+            if not issues:
+                return
+            for issue in issues:
+                # This ticket is not part of a sprint, so skip it.
+                if issue.fields.customfield_12380 is None:
+                    continue
+                # custom_field12380 is the array of sprints that have been assigned to the ticket.
+                # If one of those sprint is active, grab it!
+                if any("state=ACTIVE" in sprint_info for sprint_info in issue.fields.customfield_12380):
+                    yield str(issue), issue.fields.summary, "%s %s" % (str(issue), issue.fields.summary)
 
     def update_ticket(self, ticket_id, task_name, date, total_task_duration):
 
