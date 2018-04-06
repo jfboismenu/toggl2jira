@@ -266,7 +266,7 @@ class JiraTickets(object):
     def get_tickets(self):
 
         # Find all issues.
-        issues = self._jira.search_issues("project=SPLAT and assignee = currentUser()")
+        issues = self._jira.search_issues("project=%s and assignee = currentUser()" % self._jira_project)
         for issue in issues:
             if issue.fields.customfield_12380 is None or "state=ACTIVE" not in issue.fields.customfield_12380[0]:
                 continue
