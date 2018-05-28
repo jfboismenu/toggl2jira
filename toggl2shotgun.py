@@ -138,9 +138,9 @@ def _main():
     # Log into Shotgun and toggl.
     (toggl, wid) = connect_to_toggl(args.headless)
 
-    print "Updating Shotgun tickets..."
-    print "==========================="
-    _export_tickets(ShotgunTickets, toggl, wid, args, start, end)
+    # print "Updating Shotgun tickets..."
+    # print "==========================="
+    # _export_tickets(ShotgunTickets, toggl, wid, args, start, end)
 
     print
     print "Updating JIRA issues..."
