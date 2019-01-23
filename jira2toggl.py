@@ -14,8 +14,8 @@ from argparse import ArgumentParser
 import sys
 
 from common import (
-    connect_to_toggl, get_projects_from_toggl, ShotgunTickets, JiraTickets,
-    Toggl2ShotgunError, UserInteractionRequiredError, add_common_arguments
+    connect_to_toggl, get_projects_from_toggl, JiraTickets,
+    Toggl2JiraError, UserInteractionRequiredError, add_common_arguments
 )
 
 DRY_RUN = False
@@ -23,26 +23,22 @@ DRY_RUN = False
 
 def _main():
 
-    parser = ArgumentParser(description="Import time entries from Toggl to Shotgun")
+    parser = ArgumentParser(description="Exports Jira tickets to Toggl projects.")
     add_common_arguments(parser)
 
     args = parser.parse_args()
-    # Log into Shotgun
+    # Log into toggl
     (toggl, wid) = connect_to_toggl(args.headless)
-
-    # print "Exporting Shotgun tickets to Toggl..."
-    # print "====================================="
-    # _import_tickets(ShotgunTickets, toggl, wid, args)
 
     print
     print "Exporting JIRA issues to Toggl..."
     print "================================="
-    _import_tickets(JiraTickets, toggl, wid, args)
+    _import_tickets(toggl, wid, args)
 
 
-def _import_tickets(ticket_factory, toggl, wid, args):
+def _import_tickets(toggl, wid, args):
 
-    backend = ticket_factory(args.headless)
+    backend = JiraTickets(args.headless)
 
     # Get Toggl project information
     toggl_projects = get_projects_from_toggl(toggl)
@@ -51,7 +47,7 @@ def _import_tickets(ticket_factory, toggl, wid, args):
 
     sprint_tickets = set()
 
-    # For each ticket from the current sprint in Shotgun, create or update one in Toggl.
+    # For each ticket from the current sprint in Jira, create or update one in Toggl.
     for ticket_id, ticket_title, project_title in backend.get_tickets():
 
         # Keep track of the tickets that have been processed.
@@ -59,7 +55,7 @@ def _import_tickets(ticket_factory, toggl, wid, args):
 
         # If the ticket is already imported into Toggl
         if ticket_id in toggl_projects:
-            # Make sure the description part of the project name matches the title in shotgun.
+            # Make sure the description part of the project name matches the title in Jira.
             if toggl_projects[ticket_id].description != ticket_title:
                 # No match, so update!
                 if not DRY_RUN:
@@ -100,7 +96,7 @@ if __name__ == '__main__':
     except UserInteractionRequiredError as e:
         print "Headless invocation failed because credentials were invalid."
         sys.exit(1)
-    except Toggl2ShotgunError as e:
+    except Toggl2JiraError as e:
         print
         print str(e)
         sys.exit(2)

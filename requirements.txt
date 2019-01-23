@@ -1,4 +1,3 @@
-git+git://github.com/shotgunsoftware/python-api.git
 https://github.com/jfboismenu/togglwrapper/archive/active_flag.zip
 iso8601==0.1.11
 keyring==10.3.1

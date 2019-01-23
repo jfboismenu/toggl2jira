@@ -15,8 +15,8 @@ from itertools import groupby
 import datetime
 import sys
 from common import (
-    connect_to_toggl, get_projects_from_toggl, Toggl2ShotgunError, ShotgunTickets, JiraTickets,
-    add_common_arguments, UserInteractionRequiredError
+    connect_to_toggl, get_projects_from_toggl, Toggl2JiraError,
+    add_common_arguments, UserInteractionRequiredError, JiraTickets
 )
 import iso8601
 import argparse
@@ -102,7 +102,7 @@ def _to_hours_minutes(seconds):
 def _main():
 
     # Get some time interval options.
-    parser = argparse.ArgumentParser(description="Import time entries from Toggl to Shotgun")
+    parser = argparse.ArgumentParser(description="Import time entries from Toggl to JIRA")
     add_common_arguments(parser)
     parser.add_argument(
         "--start", "-s",
@@ -138,27 +138,25 @@ def _main():
     # Log into Shotgun and toggl.
     (toggl, wid) = connect_to_toggl(args.headless)
 
-    # print "Updating Shotgun tickets..."
-    # print "==========================="
-    # _export_tickets(ShotgunTickets, toggl, wid, args, start, end)
-
     print
     print "Updating JIRA issues..."
     print "==========================="
-    _export_tickets(JiraTickets, toggl, wid, args, start, end)
+    _export_tickets(toggl, wid, args, start, end)
 
 
-def _export_tickets(ticket_factory, toggl, wid, args, start, end):
+def _export_tickets(toggl, wid, args, start, end):
 
-    shotgun_tickets = ticket_factory(args.headless)
+    tickets = JiraTickets(args.headless)
 
     # Get Toggl project information
     toggl_projects = get_projects_from_toggl(toggl)
 
-    toggl_projects = dict(shotgun_tickets.filter_projects(toggl_projects))
+    toggl_projects = dict(tickets.filter_projects(toggl_projects))
 
-    # Create a map that goes from Toggl project id to a Shotgun ticket id.
-    toggl_projects_to_sg = {project.id: ticket_id for ticket_id, project in toggl_projects.iteritems()}
+    # Create a map that goes from Toggl project id to a JIRA ticket id.
+    toggl_projects_to_jira_tickets = {
+        project.id: ticket_id for ticket_id, project in toggl_projects.iteritems()
+    }
 
     # Get the entries that the user requested.
     time_entries = toggl.TimeEntries.get(
@@ -174,8 +172,8 @@ def _export_tickets(ticket_factory, toggl, wid, args, start, end):
         # Task names are optional. If any, set to a empty string.
         task_name = task_name or ""
 
-        # if the project is not tracked in Shotgun, skip it!
-        ticket_id = toggl_projects_to_sg.get(pid)
+        # if the Toggl project is not tracked in JIRA, skip it!
+        ticket_id = toggl_projects_to_jira_tickets.get(pid)
         if ticket_id is None:
             continue
 
@@ -197,7 +195,7 @@ def _export_tickets(ticket_factory, toggl, wid, args, start, end):
         else:
             continue
 
-        shotgun_tickets.update_ticket(
+        tickets.update_ticket(
             ticket_id,
             task_name,
             day,
@@ -212,7 +210,7 @@ if __name__ == "__main__":
     except UserInteractionRequiredError as e:
         print "Headless invocation failed because credentials were invalid."
         sys.exit(1)
-    except Toggl2ShotgunError as e:
+    except Toggl2JiraError as e:
         print
         print str(e)
         sys.exit(2)
