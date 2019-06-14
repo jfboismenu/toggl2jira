@@ -23,6 +23,7 @@ import argparse
 
 # User has specified something, so use that exactly
 UTC_OFFSET = datetime.datetime.utcnow() - datetime.datetime.now()
+DRY_RUN = False
 
 
 def _cmp_time_entry(a, b):
@@ -141,12 +142,62 @@ def _main():
     print
     print "Updating JIRA issues..."
     print "==========================="
-    _export_tickets(toggl, wid, args, start, end)
-
-
-def _export_tickets(toggl, wid, args, start, end):
-
     tickets = JiraTickets(args.headless)
+    _export_tickets(toggl, wid, tickets, start, end)
+    _import_tickets(toggl, wid, tickets)
+
+
+def _import_tickets(toggl, wid, tickets):
+    # Get Toggl project information
+    toggl_projects = get_projects_from_toggl(toggl)
+
+    toggl_projects = dict(tickets.filter_projects(toggl_projects))
+
+    sprint_tickets = set()
+
+    # For each ticket from the current sprint in Jira, create or update one in Toggl.
+    for ticket_id, ticket_title, project_title in tickets.get_tickets():
+
+        # Keep track of the tickets that have been processed.
+        sprint_tickets.add(ticket_id)
+
+        # If the ticket is already imported into Toggl
+        if ticket_id in toggl_projects:
+            # Make sure the description part of the project name matches the title in Jira.
+            if toggl_projects[ticket_id].description != ticket_title:
+                # No match, so update!
+                if not DRY_RUN:
+                    toggl.Projects.update(
+                        toggl_projects[ticket_id].id,
+                        data={"project": {"name": project_title}}
+                    )
+                print "Updated project: '%s'" % (project_title,)
+            elif not toggl_projects[ticket_id].active:
+                if not DRY_RUN:
+                    # If the project was archived in the past, unarchive it.
+                    toggl.Projects.update(
+                        toggl_projects[ticket_id].id,
+                        data={"project": {"active": True}}
+                    )
+                print "Unarchived project: '%s'" % (project_title,)
+            else:
+                print "Project already in Toggl: %s" % (ticket_title,)
+        else:
+            if not DRY_RUN:
+                # Project is missing, create in Toggl.
+                toggl.Projects.create({"project": {"name": project_title, "wid": wid}})
+            print "Created project: '%s'" % (project_title,)
+
+    projects_to_archive = set(toggl_projects.keys()) - sprint_tickets
+
+    for ticket_id, toggl_project in toggl_projects.iteritems():
+        if ticket_id in projects_to_archive and toggl_project.active:
+            print "Archiving project: '%s'" % (toggl_project.description,)
+            if not DRY_RUN:
+                toggl.Projects.update(toggl_project.id, data={"project": {"active": False}})
+
+
+def _export_tickets(toggl, wid, tickets, start, end):
 
     # Get Toggl project information
     toggl_projects = get_projects_from_toggl(toggl)
