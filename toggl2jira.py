@@ -128,7 +128,7 @@ def _main():
     else:
         # Go back as far as 5 days ago to import data.
         today_at_midnight = datetime.datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-        start = today_at_midnight - datetime.timedelta(days=7) + UTC_OFFSET
+        start = today_at_midnight - datetime.timedelta(days=14) + UTC_OFFSET
 
     if args.end is not None:
         end = _user_str_to_utc_timezone(args.end)
@@ -144,6 +144,10 @@ def _main():
     print "==========================="
     tickets = JiraTickets(args.headless)
     _export_tickets(toggl, wid, tickets, start, end)
+
+    print
+    print "Updating Toggl projects..."
+    print "==========================="
     _import_tickets(toggl, wid, tickets)
 
 
