@@ -31,7 +31,6 @@ import json
 import os
 import re
 import iso8601
-from tzlocal import get_localzone
 
 from collections import namedtuple
 
