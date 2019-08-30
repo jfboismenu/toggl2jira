@@ -13,12 +13,14 @@ import sys
 import os
 import datetime
 import itertools
+
 third_party_location = os.path.join(os.path.dirname(__file__), "3rd_party")
 sys.path.insert(0, third_party_location)
 
 # Disable SSL warnings on Windows.
 import requests
 from requests.packages.urllib3.exceptions import InsecurePlatformWarning
+
 requests.packages.urllib3.disable_warnings(InsecurePlatformWarning)
 
 from togglwrapper import Toggl
@@ -190,14 +192,17 @@ def connect_to_toggl(is_headless):
 
 
 class JiraTickets(object):
-
     def __init__(self, is_headless):
         self._jira, self._jira_project = self._connect(is_headless)
 
     def _connect(self, is_headless):
         data = _get_credentials_from_file()
 
-        if "jira_site" not in data or "jira_login" not in data or "jira_project" not in data:
+        if (
+            "jira_site" not in data
+            or "jira_login" not in data
+            or "jira_project" not in data
+        ):
             return self._create_new_connection(is_headless, data)
 
         password = _get_password(data["jira_site"], data["jira_login"])
@@ -249,8 +254,12 @@ class JiraTickets(object):
             project_name = project["name"]
             if not project_name.startswith(self._jira_project + "-"):
                 continue
-            ticket_id, ticket_desc = re.match("({}-\d+) (.*)".format(self._jira_project), project_name).groups()
-            yield ticket_id, TogglProject(str(ticket_desc), project["id"], project["active"])
+            ticket_id, ticket_desc = re.match(
+                "({}-\d+) (.*)".format(self._jira_project), project_name
+            ).groups()
+            yield ticket_id, TogglProject(
+                str(ticket_desc), project["id"], project["active"]
+            )
 
     def get_tickets(self):
 
@@ -260,7 +269,7 @@ class JiraTickets(object):
             # This pretty much replicates the query string from the Kanban board for the Toolkit
             # team.
             issues = self._jira.search_issues(
-                #"project = %s AND assignee = currentUser()" % self._jira_project,
+                # "project = %s AND assignee = currentUser()" % self._jira_project,
                 "project = %s AND "
                 "assignee = currentUser() AND "
                 "issuetype != Initiative AND "
@@ -270,17 +279,20 @@ class JiraTickets(object):
                 "ORDER BY Rank ASC" % self._jira_project,
                 maxResults=STEP_SIZE,
                 startAt=start_at,
-                fields=["summary", "key"]
+                fields=["summary", "key"],
             )
             # If not issues have been returned, exit.
             if not issues:
                 return
             for issue in issues:
-               yield str(issue), issue.fields.summary, "%s %s" % (str(issue), issue.fields.summary)
+                yield str(issue), issue.fields.summary, "%s %s" % (
+                    str(issue),
+                    issue.fields.summary,
+                )
 
     def update_ticket(self, ticket_id, task_name, date, total_task_duration):
 
-        total_task_duration *= 60 # JIRA works in seconds
+        total_task_duration *= 60  # JIRA works in seconds
 
         # Get all the worklogs for this ticket.
         worklogs = self._jira.worklogs(ticket_id)
@@ -292,7 +304,10 @@ class JiraTickets(object):
             worklog_started = iso8601.parse_date(w.started)
 
             # If we've found a time log for the day/task pair.
-            if w.comment == task_name and started.utctimetuple() == worklog_started.utctimetuple():
+            if (
+                w.comment == task_name
+                and started.utctimetuple() == worklog_started.utctimetuple()
+            ):
                 # ... and the total time is wrong, update it!
                 if w.timeSpentSeconds != total_task_duration:
                     w.update(timeSpentSeconds=total_task_duration)
@@ -305,5 +320,5 @@ class JiraTickets(object):
                 ticket_id,
                 timeSpentSeconds=total_task_duration,
                 started=started,
-                comment=task_name
+                comment=task_name,
             )

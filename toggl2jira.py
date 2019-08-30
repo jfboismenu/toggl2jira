@@ -15,8 +15,12 @@ from itertools import groupby
 import datetime
 import sys
 from common import (
-    connect_to_toggl, get_projects_from_toggl, Toggl2JiraError,
-    add_common_arguments, UserInteractionRequiredError, JiraTickets
+    connect_to_toggl,
+    get_projects_from_toggl,
+    Toggl2JiraError,
+    add_common_arguments,
+    UserInteractionRequiredError,
+    JiraTickets,
 )
 import iso8601
 import argparse
@@ -50,10 +54,7 @@ def _sort_time_entries(items):
     """
     Iterates on tasks grouped by date, project and task name.
     """
-    return groupby(
-        sorted(items, key=_time_entry_key_func),
-        _time_entry_key_func
-    )
+    return groupby(sorted(items, key=_time_entry_key_func), _time_entry_key_func)
 
 
 def _user_str_to_utc_timezone(date_str):
@@ -103,21 +104,25 @@ def _to_hours_minutes(seconds):
 def _main():
 
     # Get some time interval options.
-    parser = argparse.ArgumentParser(description="Import time entries from Toggl to JIRA")
+    parser = argparse.ArgumentParser(
+        description="Import time entries from Toggl to JIRA"
+    )
     add_common_arguments(parser)
     parser.add_argument(
-        "--start", "-s",
+        "--start",
+        "-s",
         action="store",
         required=False,
         default=None,
-        help="First day to import data for in the YYYY-MM-DD format. Defaults to 5 days ago at midnight."
+        help="First day to import data for in the YYYY-MM-DD format. Defaults to 5 days ago at midnight.",
     )
     parser.add_argument(
-        "--end", "-e",
+        "--end",
+        "-e",
         action="store",
         required=False,
         default=None,
-        help="Last day to import data for in the YYYY-MM-DD format. Defaults to current time."
+        help="Last day to import data for in the YYYY-MM-DD format. Defaults to current time.",
     )
 
     # Read the options from the command line.
@@ -127,7 +132,9 @@ def _main():
         start = _user_str_to_utc_timezone(args.start)
     else:
         # Go back as far as 5 days ago to import data.
-        today_at_midnight = datetime.datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        today_at_midnight = datetime.datetime.now().replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
         start = today_at_midnight - datetime.timedelta(days=14) + UTC_OFFSET
 
     if args.end is not None:
@@ -172,15 +179,14 @@ def _import_tickets(toggl, wid, tickets):
                 if not DRY_RUN:
                     toggl.Projects.update(
                         toggl_projects[ticket_id].id,
-                        data={"project": {"name": project_title}}
+                        data={"project": {"name": project_title}},
                     )
                 print(f"Updated project: '{project_title}'")
             elif not toggl_projects[ticket_id].active:
                 if not DRY_RUN:
                     # If the project was archived in the past, unarchive it.
                     toggl.Projects.update(
-                        toggl_projects[ticket_id].id,
-                        data={"project": {"active": True}}
+                        toggl_projects[ticket_id].id, data={"project": {"active": True}}
                     )
                 print(f"Unarchived project: '{project_title}'")
             else:
@@ -197,7 +203,9 @@ def _import_tickets(toggl, wid, tickets):
         if ticket_id in projects_to_archive and toggl_project.active:
             print(f"Archiving project: '{toggl_project.description}'")
             if not DRY_RUN:
-                toggl.Projects.update(toggl_project.id, data={"project": {"active": False}})
+                toggl.Projects.update(
+                    toggl_project.id, data={"project": {"active": False}}
+                )
 
 
 def _export_tickets(toggl, wid, tickets, start, end):
@@ -214,14 +222,15 @@ def _export_tickets(toggl, wid, tickets, start, end):
 
     # Get the entries that the user requested.
     time_entries = toggl.TimeEntries.get(
-        start_date=_to_toggl_date_format(start),
-        end_date=_to_toggl_date_format(end)
+        start_date=_to_toggl_date_format(start), end_date=_to_toggl_date_format(end)
     )
 
     previous_day = None
     # Group tasks by day, project and task name so we can compute and save a duration for a given task
     # on a given project on a give day.
-    for (day, pid, task_name), time_entries in _sort_time_entries(_massage_time_entries(time_entries)):
+    for (day, pid, task_name), time_entries in _sort_time_entries(
+        _massage_time_entries(time_entries)
+    ):
 
         # Task names are optional. If any, set to a empty string.
         task_name = task_name or ""
@@ -237,7 +246,10 @@ def _export_tickets(toggl, wid, tickets, start, end):
             previous_day = day
 
         # Sum all the durations, except the one in progress if it is present (duration < 0())
-        total_task_duration = int(sum((entry["duration"] for entry in time_entries if entry["duration"] >= 0)) / 60.0)
+        total_task_duration = int(
+            sum((entry["duration"] for entry in time_entries if entry["duration"] >= 0))
+            / 60.0
+        )
 
         if total_task_duration > 0:
             # Show some progress.
@@ -247,12 +259,7 @@ def _export_tickets(toggl, wid, tickets, start, end):
         else:
             continue
 
-        tickets.update_ticket(
-            ticket_id,
-            task_name,
-            day,
-            max(total_task_duration, 1)
-        )
+        tickets.update_ticket(ticket_id, task_name, day, max(total_task_duration, 1))
 
 
 if __name__ == "__main__":
