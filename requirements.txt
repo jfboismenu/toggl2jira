@@ -1,4 +1,4 @@
-git+git://github.com/shotgunsoftware/python-api.git
 https://github.com/jfboismenu/togglwrapper/archive/active_flag.zip
+git+ssh://git@github.com/jfboismenu/jira.git@board_issues
 iso8601==0.1.11
 keyring==10.3.1

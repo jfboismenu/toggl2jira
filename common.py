@@ -11,32 +11,37 @@ Jean-François Boismenu
 
 import sys
 import os
+import datetime
+import itertools
+
 third_party_location = os.path.join(os.path.dirname(__file__), "3rd_party")
 sys.path.insert(0, third_party_location)
 
 # Disable SSL warnings on Windows.
 import requests
 from requests.packages.urllib3.exceptions import InsecurePlatformWarning
+
 requests.packages.urllib3.disable_warnings(InsecurePlatformWarning)
 
 from togglwrapper import Toggl
-from shotgun_api3 import Shotgun, AuthenticationFault
+from jira import JIRA, resources
 from getpass import getpass
 import keyring
 import json
 import os
 import re
+import iso8601
 
 from collections import namedtuple
 
 TogglProject = namedtuple("TogglProject", ["description", "id", "active"])
 
 
-class Toggl2ShotgunError(Exception):
+class Toggl2JiraError(Exception):
     pass
 
 
-class UserInteractionRequiredError(Toggl2ShotgunError):
+class UserInteractionRequiredError(Toggl2JiraError):
     pass
 
 
@@ -66,7 +71,7 @@ def _get_password(site, login):
     try:
         return keyring.get_password(site, login)
     except:
-        print "It appears the keyring module doesn't support your platform."
+        print("It appears the keyring module doesn't support your platform.")
         return None
 
 
@@ -91,12 +96,12 @@ def _get_credential(cred_name, cred_default):
     :returns: Value entered by the user.
     """
     if cred_default:
-        cred_value = raw_input("%s [%s]: " % (cred_name, cred_default))
+        cred_value = input("%s [%s]: " % (cred_name, cred_default))
         return cred_value.strip() if cred_value.strip() else cred_default
     else:
         cred_value = None
         while not cred_value or not cred_value.strip():
-            cred_value = raw_input("%s: " % cred_name)
+            cred_value = input("%s: " % cred_name)
         return cred_value.strip()
 
 
@@ -104,18 +109,7 @@ def _get_credential_file_path():
     """
     Retrieves the path to the credential file.
     """
-    return os.path.expanduser("~/.toggl2shotgun")
-
-
-def _get_self(sg, login):
-    """
-    Finds the the human user associated with a given login.
-
-    :param str login: Shotgun login string.
-
-    :returns: HumanUser entity associated with the login.
-    """
-    return sg.find("HumanUser", [["login", "is", login]])
+    return os.path.expanduser("~/.toggl2jira")
 
 
 def _get_credentials_from_file():
@@ -129,97 +123,8 @@ def _get_credentials_from_file():
         with open(_get_credential_file_path(), "r") as f:
             data = json.load(f)
             return data
-    except:
+    except Exception:
         return {}
-
-
-def _create_new_connection(is_headless, data):
-    """
-    Creates a new Shotgun connection based on user input.
-
-    :param bool is_headless: Indicates if the script was invoked without a shell.
-    :param dict data: Data found in the credentials file.
-
-    :returns: A Shotgun connection and a user entity for the loged in user.
-    """
-
-    if is_headless:
-        raise UserInteractionRequiredError()
-
-    # If the credentials didn't  work or the file didn't exist,
-    # ask for the credentials.
-    site = _get_credential("Site", data.get("site", ""))
-    login = _get_credential("Login", data.get("login", ""))
-
-    sg = None
-    # While we don't have a valid connection, keep asking for a password.
-    while not sg:
-        password = getpass("Password: ")
-
-        # Try to connect again. Assume it'll work.
-        try:
-            sg = Shotgun(site, login=login, password=password)
-            session_token = sg.get_session_token()
-        except AuthenticationFault:
-            # Authentication failure, reset the connection handle.
-            print "Authentication failure. Bad password?"
-            print
-            sg = None
-        else:
-            _set_password(site, login, password)
-
-    # Update the data dictionary. Note that the dictionary can also
-    # contain information about Toggl, so we need to update it
-    # instead of creating a new one.
-    data["site"] = site
-    data["login"] = login
-    data["session_token"] = session_token
-    with open(_get_credential_file_path(), "w") as f:
-        json.dump(data, f)
-
-    return sg, _get_self(sg, login)
-
-
-def _log_into_sg(is_headless):
-    """
-    Ensures that the user is logged into Shotgun. If not logged, the credentials are
-    queried. If out of date, useful defaults are provided.
-
-    :param bool is_headless: If True, logging won't attempt to ask for credentials.
-
-    :returns: Shotgun connection and associated HumanUser entity.
-    """
-    # Assume the file is empty originally.
-    data = _get_credentials_from_file()
-
-    # No session token, create a new connection.
-    if not data.get("session_token"):
-        return _create_new_connection(is_headless, data)
-
-    # Try to create a session with the session token that is stored.
-    sg = Shotgun(data["site"], session_token=data["session_token"])
-    try:
-        return sg, _get_self(sg, data["login"])
-    except AuthenticationFault:
-        pass
-
-    print "Session token expired. Retrieving password from keyring."
-
-    password = _get_password(data["site"], data["login"])
-    # If there is no password, ask for the credentials from scratch.
-    if not password:
-        print "Password not found in keyring or empty."
-        return _create_new_connection(is_headless, data)
-
-    try:
-        sg = Shotgun(data["site"], login=data["login"], password=password)
-        data["session_token"] = sg.get_session_token()
-        with open(_get_credential_file_path(), "w") as f:
-            json.dump(data, f)
-        return sg, _get_self(sg, data["login"])
-    except AuthenticationFault:
-        print "Password in keychain doesnt't seem to work. Did you change it?"
-        return _create_new_connection(is_headless, data)
 
 
 def _log_into_toggl():
@@ -259,7 +164,7 @@ def _get_shotgun_workspace(toggl):
         if w["name"] == "Shotgun":
             return w["id"]
     else:
-        raise Toggl2ShotgunError(
+        raise Toggl2JiraError(
             "'Shotgun' workspace does not exist. Visit 'https://toggl.com/app/workspaces' "
             "and create a workspace named 'Shotgun'."
         )
@@ -274,39 +179,147 @@ def get_projects_from_toggl(toggl):
     workspace_id = _get_shotgun_workspace(toggl)
 
     for project in toggl.Workspaces.get_projects(workspace_id, active="both") or []:
-        project_name = project["name"]
-        if not project_name.startswith("#"):
-            continue
-        ticket_id, ticket_desc = re.match("#([0-9]+) (.*)", project_name).groups()
-
-        yield int(ticket_id), TogglProject(str(ticket_desc), project["id"], project["active"])
+        yield project
 
 
-def get_tickets_from_shotgun(sg, sg_self):
+def connect_to_toggl(is_headless):
     """
-    Retrieves all the the tickets from the sprint in progress.
-
-    :param sg_self: HumanUser entity dictionary for whom we request the tickets.
-
-    :returns: An iterable that yields (shotgun ticket id, shotgun ticket title)
+    Connects to Toggl.
+    :returns: A tuple of (toggl API, user workspace).
     """
-    for item in sg.find(
-        "Ticket",
-        [
-            ["sg_sprint.CustomEntity01.sg_status_list", "is", "ip"],
-            ["addressings_to", "is", sg_self]
-        ],
-        ["title"]
-    ):
-        yield item["id"], item["title"]
+    return _log_into_toggl()
 
 
-def connect(is_headless):
-    """
-    Connects you to both Shotgun and Toggle.
+class JiraTickets(object):
+    def __init__(self, is_headless):
+        self._jira, self._jira_project, self._jira_board_id = self._connect(is_headless)
 
-    :param bool is_headless: Indicates if the script is invoked headless.
+    def _connect(self, is_headless):
+        data = _get_credentials_from_file()
 
-    :returns: A tuple of ((shotgun connection, user entity dictionary), toggl api key).
-    """
-    return _log_into_sg(is_headless), _log_into_toggl()
+        if (
+            "jira_site" not in data
+            or "jira_login" not in data
+            or "jira_project" not in data
+            or "jira_board_id" not in data
+        ):
+            return self._create_new_connection(is_headless, data)
+
+        password = _get_password(data["jira_site"], data["jira_login"])
+        # If there is no password, ask for the credentials from scratch.
+        if not password:
+            print("Password not found in keyring or empty.")
+            return self._create_new_connection(is_headless, data)
+
+        try:
+            jira = JIRA(
+                data["jira_site"], basic_auth=(data["jira_login"], password),
+                options={
+                    "agile_rest_path": resources.GreenHopperResource.AGILE_BASE_REST_PATH
+                }
+            )
+            return jira, data["jira_project"], data["jira_board_id"]
+        except AuthenticationFault:
+            print("Password in keychain doesnt't seem to work. Did you change it?")
+            return self._create_new_connection(is_headless, data)
+
+    def _create_new_connection(self, is_headless, data):
+
+        if is_headless:
+            raise UserInteractionRequiredError()
+
+        site = _get_credential("JIRA site", data.get("jira_site", ""))
+        login = _get_credential("JIRA login", data.get("jira_login", ""))
+        project = _get_credential("JIRA project", data.get("jira_project", ""))
+        board_id = _get_credential("JIRA board id", data.get("jira_board_id", ""))
+
+        jira = None
+        while not jira:
+            password = getpass("Password: ")
+
+            try:
+                jira = JIRA(site, basic_auth=(login, password))
+            except Exception:
+                jira = None
+            else:
+                _set_password(site, login, password)
+
+        # Update the data dictionary. Note that the dictionary can also
+        # contain information about Toggl, so we need to update it
+        # instead of creating a new one.
+        data["jira_site"] = site
+        data["jira_login"] = login
+        data["jira_project"] = project
+        data["jira_board_id"] = board_id
+        with open(_get_credential_file_path(), "w") as f:
+            json.dump(data, f)
+
+        return jira, project, board_id
+
+    def filter_projects(self, projects):
+        for project in projects:
+            project_name = project["name"]
+            if not project_name.startswith(self._jira_project + "-"):
+                continue
+            ticket_id, ticket_desc = re.match(
+                "({}-\d+) (.*)".format(self._jira_project), project_name
+            ).groups()
+            yield ticket_id, TogglProject(
+                str(ticket_desc), project["id"], project["active"]
+            )
+
+    def get_tickets(self):
+
+        # Find all issues.
+        STEP_SIZE = 50
+        for start_at in itertools.count(0, STEP_SIZE):
+            # This pretty much replicates the query string from the Kanban board for the Toolkit
+            # team.
+            issues = self._jira.board_issues(
+                self._jira_board_id,
+                startAt=start_at,
+                maxResults=STEP_SIZE,
+                jql="status NOT IN(open,closed) AND assignee = currentUser()",
+                fields=["summary", "key"],
+            )
+            # If not issues have been returned, exit.
+            if not issues:
+                return
+            for issue in issues:
+                yield str(issue), issue.fields.summary, "%s %s" % (
+                    str(issue),
+                    issue.fields.summary,
+                )
+
+    def update_ticket(self, ticket_id, task_name, date, total_task_duration):
+
+        total_task_duration *= 60  # JIRA works in seconds
+
+        # Get all the worklogs for this ticket.
+        worklogs = self._jira.worklogs(ticket_id)
+
+        # All logs are logged with a timestamp of 9am in UTC
+        started = datetime.datetime(date.year, date.month, date.day, 9, 0, 0)
+
+        for w in worklogs:
+            worklog_started = iso8601.parse_date(w.started)
+
+            # If we've found a time log for the day/task pair.
+            if (
+                w.comment == task_name
+                and started.utctimetuple() == worklog_started.utctimetuple()
+            ):
+                # ... and the total time is wrong, update it!
+                if w.timeSpentSeconds != total_task_duration:
+                    w.update(timeSpentSeconds=total_task_duration)
+
+                # We're done!
+                break
+        else:
+            # We haven't found the worklog, so we'll create a new one.
+            self._jira.add_worklog(
+                ticket_id,
+                timeSpentSeconds=total_task_duration,
+                started=started,
+                comment=task_name,
+            )
