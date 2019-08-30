@@ -70,7 +70,7 @@ def _get_password(site, login):
     try:
         return keyring.get_password(site, login)
     except:
-        print "It appears the keyring module doesn't support your platform."
+        print("It appears the keyring module doesn't support your platform.")
         return None
 
 
@@ -95,12 +95,12 @@ def _get_credential(cred_name, cred_default):
     :returns: Value entered by the user.
     """
     if cred_default:
-        cred_value = raw_input("%s [%s]: " % (cred_name, cred_default))
+        cred_value = input("%s [%s]: " % (cred_name, cred_default))
         return cred_value.strip() if cred_value.strip() else cred_default
     else:
         cred_value = None
         while not cred_value or not cred_value.strip():
-            cred_value = raw_input("%s: " % cred_name)
+            cred_value = input("%s: " % cred_name)
         return cred_value.strip()
 
 
@@ -203,14 +203,14 @@ class JiraTickets(object):
         password = _get_password(data["jira_site"], data["jira_login"])
         # If there is no password, ask for the credentials from scratch.
         if not password:
-            print "Password not found in keyring or empty."
+            print("Password not found in keyring or empty.")
             return self._create_new_connection(is_headless, data)
 
         try:
             jira = JIRA(data["jira_site"], basic_auth=(data["jira_login"], password))
             return jira, data["jira_project"]
         except AuthenticationFault:
-            print "Password in keychain doesnt't seem to work. Did you change it?"
+            print("Password in keychain doesnt't seem to work. Did you change it?")
             return self._create_new_connection(is_headless, data), data["jira_project"]
 
     def _create_new_connection(self, is_headless, data):
@@ -285,15 +285,14 @@ class JiraTickets(object):
         # Get all the worklogs for this ticket.
         worklogs = self._jira.worklogs(ticket_id)
 
-        # All logs are logged with a timestamp of 9am on the day in the current timezone.
+        # All logs are logged with a timestamp of 9am in UTC
         started = datetime.datetime(date.year, date.month, date.day, 9, 0, 0)
-        started = get_localzone().localize(started)
 
         for w in worklogs:
             worklog_started = iso8601.parse_date(w.started)
 
             # If we've found a time log for the day/task pair.
-            if w.comment == task_name and started == worklog_started:
+            if w.comment == task_name and started.utctimetuple() == worklog_started.utctimetuple():
                 # ... and the total time is wrong, update it!
                 if w.timeSpentSeconds != total_task_duration:
                     w.update(timeSpentSeconds=total_task_duration)

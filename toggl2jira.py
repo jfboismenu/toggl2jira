@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 ----------------------------------------------------------------------------
@@ -51,7 +51,7 @@ def _sort_time_entries(items):
     Iterates on tasks grouped by date, project and task name.
     """
     return groupby(
-        sorted(items, _cmp_time_entry),
+        sorted(items, key=_time_entry_key_func),
         _time_entry_key_func
     )
 
@@ -139,15 +139,15 @@ def _main():
     # Log into Shotgun and toggl.
     (toggl, wid) = connect_to_toggl(args.headless)
 
-    print
-    print "Updating JIRA issues..."
-    print "==========================="
+    print()
+    print("Updating JIRA issues...")
+    print("===========================")
     tickets = JiraTickets(args.headless)
     _export_tickets(toggl, wid, tickets, start, end)
 
-    print
-    print "Updating Toggl projects..."
-    print "==========================="
+    print()
+    print("Updating Toggl projects...")
+    print("===========================")
     _import_tickets(toggl, wid, tickets)
 
 
@@ -161,7 +161,6 @@ def _import_tickets(toggl, wid, tickets):
 
     # For each ticket from the current sprint in Jira, create or update one in Toggl.
     for ticket_id, ticket_title, project_title in tickets.get_tickets():
-
         # Keep track of the tickets that have been processed.
         sprint_tickets.add(ticket_id)
 
@@ -175,7 +174,7 @@ def _import_tickets(toggl, wid, tickets):
                         toggl_projects[ticket_id].id,
                         data={"project": {"name": project_title}}
                     )
-                print "Updated project: '%s'" % (project_title,)
+                print(f"Updated project: '{project_title}'")
             elif not toggl_projects[ticket_id].active:
                 if not DRY_RUN:
                     # If the project was archived in the past, unarchive it.
@@ -183,20 +182,20 @@ def _import_tickets(toggl, wid, tickets):
                         toggl_projects[ticket_id].id,
                         data={"project": {"active": True}}
                     )
-                print "Unarchived project: '%s'" % (project_title,)
+                print(f"Unarchived project: '{project_title}'")
             else:
-                print "Project already in Toggl: %s" % (ticket_title,)
+                print(f"Project already in Toggl: {ticket_title}")
         else:
             if not DRY_RUN:
                 # Project is missing, create in Toggl.
                 toggl.Projects.create({"project": {"name": project_title, "wid": wid}})
-            print "Created project: '%s'" % (project_title,)
+            print(f"Created project: {project_title}'")
 
     projects_to_archive = set(toggl_projects.keys()) - sprint_tickets
 
-    for ticket_id, toggl_project in toggl_projects.iteritems():
+    for ticket_id, toggl_project in toggl_projects.items():
         if ticket_id in projects_to_archive and toggl_project.active:
-            print "Archiving project: '%s'" % (toggl_project.description,)
+            print(f"Archiving project: '{toggl_project.description}'")
             if not DRY_RUN:
                 toggl.Projects.update(toggl_project.id, data={"project": {"active": False}})
 
@@ -210,7 +209,7 @@ def _export_tickets(toggl, wid, tickets, start, end):
 
     # Create a map that goes from Toggl project id to a JIRA ticket id.
     toggl_projects_to_jira_tickets = {
-        project.id: ticket_id for ticket_id, project in toggl_projects.iteritems()
+        project.id: ticket_id for ticket_id, project in toggl_projects.items()
     }
 
     # Get the entries that the user requested.
@@ -234,7 +233,7 @@ def _export_tickets(toggl, wid, tickets, start, end):
 
         # If we're on a new day, print its header.
         if previous_day != day:
-            print day
+            print(day)
             previous_day = day
 
         # Sum all the durations, except the one in progress if it is present (duration < 0())
@@ -242,10 +241,8 @@ def _export_tickets(toggl, wid, tickets, start, end):
 
         if total_task_duration > 0:
             # Show some progress.
-            print "   Ticket %s, Task %s %s" % (
-                ticket_id,
-                task_name.ljust(40),
-                _to_hours_minutes(total_task_duration)
+            print(
+                f"   Ticket {ticket_id}: {task_name.ljust(40)} {_to_hours_minutes(total_task_duration)}"
             )
         else:
             continue
@@ -263,9 +260,9 @@ if __name__ == "__main__":
         _main()
         sys.exit(0)
     except UserInteractionRequiredError as e:
-        print "Headless invocation failed because credentials were invalid."
+        print("Headless invocation failed because credentials were invalid.")
         sys.exit(1)
     except Toggl2JiraError as e:
-        print
-        print str(e)
+        print()
+        print(str(e))
         sys.exit(2)
