@@ -24,7 +24,7 @@ from requests.packages.urllib3.exceptions import InsecurePlatformWarning
 requests.packages.urllib3.disable_warnings(InsecurePlatformWarning)
 
 from togglwrapper import Toggl
-from jira import JIRA
+from jira import JIRA, resources
 from getpass import getpass
 import keyring
 import json
@@ -193,7 +193,7 @@ def connect_to_toggl(is_headless):
 
 class JiraTickets(object):
     def __init__(self, is_headless):
-        self._jira, self._jira_project = self._connect(is_headless)
+        self._jira, self._jira_project, self._jira_board_id = self._connect(is_headless)
 
     def _connect(self, is_headless):
         data = _get_credentials_from_file()
@@ -202,6 +202,7 @@ class JiraTickets(object):
             "jira_site" not in data
             or "jira_login" not in data
             or "jira_project" not in data
+            or "jira_board_id" not in data
         ):
             return self._create_new_connection(is_headless, data)
 
@@ -212,11 +213,16 @@ class JiraTickets(object):
             return self._create_new_connection(is_headless, data)
 
         try:
-            jira = JIRA(data["jira_site"], basic_auth=(data["jira_login"], password))
-            return jira, data["jira_project"]
+            jira = JIRA(
+                data["jira_site"], basic_auth=(data["jira_login"], password),
+                options={
+                    "agile_rest_path": resources.GreenHopperResource.AGILE_BASE_REST_PATH
+                }
+            )
+            return jira, data["jira_project"], data["jira_board_id"]
         except AuthenticationFault:
             print("Password in keychain doesnt't seem to work. Did you change it?")
-            return self._create_new_connection(is_headless, data), data["jira_project"]
+            return self._create_new_connection(is_headless, data)
 
     def _create_new_connection(self, is_headless, data):
 
@@ -226,6 +232,7 @@ class JiraTickets(object):
         site = _get_credential("JIRA site", data.get("jira_site", ""))
         login = _get_credential("JIRA login", data.get("jira_login", ""))
         project = _get_credential("JIRA project", data.get("jira_project", ""))
+        board_id = _get_credential("JIRA board id", data.get("jira_board_id", ""))
 
         jira = None
         while not jira:
@@ -244,10 +251,11 @@ class JiraTickets(object):
         data["jira_site"] = site
         data["jira_login"] = login
         data["jira_project"] = project
+        data["jira_board_id"] = board_id
         with open(_get_credential_file_path(), "w") as f:
             json.dump(data, f)
 
-        return jira, project
+        return jira, project, board_id
 
     def filter_projects(self, projects):
         for project in projects:
@@ -268,17 +276,11 @@ class JiraTickets(object):
         for start_at in itertools.count(0, STEP_SIZE):
             # This pretty much replicates the query string from the Kanban board for the Toolkit
             # team.
-            issues = self._jira.search_issues(
-                # "project = %s AND assignee = currentUser()" % self._jira_project,
-                "project = %s AND "
-                "assignee = currentUser() AND "
-                "issuetype != Initiative AND "
-                "(labels != SG-No-Kanban OR labels is EMPTY) AND "
-                "status != Open AND "
-                "(status != Closed OR (status = Closed AND status changed after -14d)) "
-                "ORDER BY Rank ASC" % self._jira_project,
-                maxResults=STEP_SIZE,
+            issues = self._jira.board_issues(
+                self._jira_board_id,
                 startAt=start_at,
+                maxResults=STEP_SIZE,
+                jql="status NOT IN(open,closed) AND assignee = currentUser()",
                 fields=["summary", "key"],
             )
             # If not issues have been returned, exit.
